@@ -113,7 +113,7 @@ Expected output (values from your `.boukensha/`):
 ```
 === Boukensha Step 0: Configuration ===
 
-Config dir:     /home/andrew/Sites/Claude-Code-Camp/.boukensha
+Config dir:     /c/Users/josia/OneDrive/desktop/claude-code-camp-2026-Q2/.boukensha
 Tasks:          player
 
 -- player task --
