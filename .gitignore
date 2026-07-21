@@ -10,3 +10,7 @@
 .venv/
 __pycache__/
 *.pyc
+*.ps1
+
+CODE_ANALYSIS.md
+PORTFOLIO.md
