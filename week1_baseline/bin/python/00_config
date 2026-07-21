@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(dirname "$0")/../../.."
+VENV="$ROOT/.venv"
+PYTHON="$VENV/Scripts/python"
+
+if [ ! -f "$PYTHON" ]; then
+  echo "ERROR: Virtual environment not found at $VENV" >&2
+  echo "Run: python -m venv \"$VENV\"" >&2
+  echo "Then: \"$VENV/Scripts/pip\" install -r \"$ROOT/week1_baseline/python/requirements.txt\"" >&2
+  exit 1
+fi
+
+cd "$ROOT/week1_baseline/python/00_config"
+"$PYTHON" examples/example.py

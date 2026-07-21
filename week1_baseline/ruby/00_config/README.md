@@ -133,3 +133,19 @@ API key set?    true
 These are things we observed but we do not want fixed since future steps will break.
 - We have default prompt e.g. prompts/system.md it supposed to be scoped on task e.g. prompts/<task>/system.md
 - Our settings file should accept .yml or .yaml, right not it only takes .yaml
+
+
+
+
+
+# 1. Create env
+python -m venv .venv
+
+# 2. Install deps
+.venv/Scripts/pip install -r week1_baseline/python/requirements.txt
+
+# 3. Verify
+.venv/Scripts/python .venv/verify.py
+
+# 4. Run the config example
+./bin/python/00_config
