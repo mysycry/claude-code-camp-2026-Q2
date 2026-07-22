@@ -5,6 +5,10 @@ module Boukensha
     class OpenCode < OpenAI
       BASE_URL = "https://opencode.ai/zen/v1/chat/completions"
 
+      def url
+        BASE_URL
+      end
+
       MODELS = {
         "deepseek-v4-flash-free" => {
           context_window: 128_000,
