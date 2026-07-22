@@ -1,7 +1,7 @@
 tasks:
   player:
     provider: opencode        # provider name (string)
-    model: deepseek-v4-flash
+    model: deepseek-v4-flash-free
     prompt_override:
       system: true
 mud:
