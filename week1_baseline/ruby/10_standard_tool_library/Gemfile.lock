@@ -1,0 +1,21 @@
+PATH
+  remote: .
+  specs:
+    boukensha (0.10.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    dotenv (3.2.0)
+
+PLATFORMS
+  arm64-darwin-23
+  ruby
+  x64-mingw-ucrt
+
+DEPENDENCIES
+  boukensha!
+  dotenv
+
+BUNDLED WITH
+   2.5.19

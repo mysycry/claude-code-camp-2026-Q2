@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+VENV="$ROOT/.venv"
+PYTHON="$VENV/Scripts/python"
+if [ -f "${PYTHON}.exe" ]; then
+  PYTHON="${PYTHON}.exe"
+fi
+
+if [ ! -f "$PYTHON" ]; then
+  echo "ERROR: Virtual environment not found at $VENV" >&2
+  echo "Run: python -m venv \"$VENV\"" >&2
+  exit 1
+fi
+
+export PYTHONIOENCODING=utf-8
+cd "$ROOT/week1_baseline/python/10_standard_tool_library"
+"$PYTHON" examples/example.py
