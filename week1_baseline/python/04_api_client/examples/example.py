@@ -1,11 +1,14 @@
 import json
 import os
 import sys
+import pathlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 if "BOUKENSHA_DIR" not in os.environ:
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    repo_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    )
     os.environ["BOUKENSHA_DIR"] = os.path.join(repo_root, ".boukensha")
 
 from boukensha.backends.anthropic import Anthropic
@@ -36,38 +39,43 @@ registry.tool(
     "read_file",
     description="Read the contents of a file from disk",
     parameters={"path": {"type": "string", "description": "The file path to read"}},
-    block=lambda path: open(path).read(),
+    block=lambda path: pathlib.Path(path).read_text(encoding="utf-8"),
 )
 
 registry.tool(
     "list_directory",
     description="List files in a directory",
     parameters={"path": {"type": "string", "description": "The directory path to list"}},
-    block=lambda path: "\n".join(f for f in os.listdir(path) if not f.startswith(".")),
+    block=lambda path: "\n".join(
+        f for f in os.listdir(path) if not f.startswith(".")
+    ),
 )
 
 ctx.add_message("user", "What files are in the current directory?")
+
+print("=== BOUKENSHA Step 4: API Client ===")
+print()
 
 provider = Player.provider(player_settings)
 model = Player.model(player_settings)
 
 backend_map = {
-    "anthropic": (Anthropic, "ANTHROPIC_API_KEY"),
-    "gemini": (Gemini, "GEMINI_API_KEY"),
-    "ollama": (Ollama, None),
-    "ollama_cloud": (OllamaCloud, "OLLAMA_API_KEY"),
-    "opencode": (OpenCode, "OPENCODE_API_KEY"),
-    "openai": (OpenAI, "OPENAI_API_KEY"),
+    "anthropic": Anthropic,
+    "gemini": Gemini,
+    "ollama": Ollama,
+    "ollama_cloud": OllamaCloud,
+    "opencode": OpenCode,
+    "openai": OpenAI,
 }
 
-entry = backend_map.get(provider)
-if entry is None:
+backend_cls = backend_map.get(provider)
+if backend_cls is None:
     raise ValueError(f"Unsupported provider for player task: {provider}")
 
-backend_cls, key_var = entry
 if provider == "ollama":
     backend = backend_cls(model=model)
 elif provider in ("anthropic", "gemini", "openai", "opencode", "ollama_cloud"):
+    key_var = f"{provider.upper()}_API_KEY"
     backend = backend_cls(api_key=os.environ[key_var], model=model)
 else:
     raise ValueError(f"Unsupported provider for player task: {provider}")
@@ -75,8 +83,6 @@ else:
 builder = PromptBuilder(ctx, backend)
 client = Client(builder)
 
-print("=== BOUKENSHA Step 4: API Client ===")
-print()
 print(f"Config: {config}")
 print(f"Provider: {provider}")
 print(f"Model: {model}")

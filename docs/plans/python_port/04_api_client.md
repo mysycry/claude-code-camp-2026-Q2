@@ -1,131 +1,99 @@
 # Python Port Plan: Step 04 — The API Client
 
 **Starting point:** copy `python/03_prompt_builder/` → `python/04_api_client/`.
-Then add the Client, ApiError, updated example, and new system prompt that Step 04 introduces.
+Then add the `Client` class that POSTs the payload assembled by `PromptBuilder`, handles retries, and returns parsed JSON.
 
 ---
 
-## What's New in Step 04
+## What's New in Ruby Step 04
 
-| Ruby Source (new/changed) | Python Target | What It Does |
+| Ruby Source | Python Target | What It Does |
 |---|---|---|
-| `backends/base.rb` | `boukensha/backends/base.py` | **Already ported in Step 03** — model validation, cost helpers ✓ |
-| `backends/*.rb` | `boukensha/backends/*.py` | **Already ported in Step 03** — all 7 backends with model tables ✓ |
-| `errors.rb` | `boukensha/errors.py` | Add `ApiError` alongside existing `UnknownToolError` / `UnsupportedModelError` |
-| `client.rb` | `boukensha/client.py` | **NEW** — HTTP POST with retry/exponential backoff, SSL, `JSON.parse` |
-| `prompts/system.md` | `boukensha/prompts/system.md` | **OVERWRITE** — new Boukensha MUD player prompt |
-| `tasks/base.rb` + `player.rb` | `boukensha/tasks/base.py`, `player.py` | **Already ported in Step 03** ✓ |
-| `config.rb` | `boukensha/config.py` | **Already ported in Step 03** — task-based config, `PROMPTS_DIR`, `dig()` ✓ |
-| `lib/boukensha.rb` | `boukensha/__init__.py` | Add imports for `Client` + `ApiError` |
-| `examples/example.rb` | `examples/example.py` | **REWRITE** — uses `Client.call()` to hit the real API, prints raw response |
+| `lib/boukensha/client.rb` (new) | `boukensha/client.py` (CREATE) | `Client` — HTTP POST via urllib, retry with backoff, `ApiError` |
+| `lib/boukensha/errors.rb` | `boukensha/errors.py` (UPDATE) | Add `ApiError(Exception)` |
+| `lib/boukensha.rb` (line 15) | `boukensha/__init__.py` (UPDATE) | Import `Client`, add `ApiError` |
+| `lib/boukensha/tasks/base.rb` (private `fetch`) | `boukensha/tasks/base.py` (UPDATE) | Add nil guard: `return None unless isinstance(settings, dict)` |
+| `prompts/system.md` | `boukensha/prompts/system.md` (OVERWRITE) | "Boukensha, autonomous player exploring a CircleMUD world" |
+| `examples/example.rb` | `examples/example.py` (OVERWRITE) | `read_file`/`list_directory` tools, `Client.call` |
+
+## What Stays the Same (Copied from Step 03)
+
+`config.py`, `context.py`, `message.py`, `tool.py`, `registry.py`, `prompt_builder.py`, `pyproject.toml`, `tasks/player.py`, all `backends/` — no changes.
 
 ---
 
-## What Stays the Same
+## Ruby `Client` → Python Mapping
 
-`config.py`, `context.py`, `tool.py`, `message.py`, `registry.py`, `prompt_builder.py`, `backends/*.py`, `tasks/*.py`, `pyproject.toml` — no changes at all. Step 04 only adds the HTTP client layer and updates the example to exercise it.
+| Ruby | Python |
+|---|---|
+| `Net::HTTP` | `urllib.request` (stdlib) |
+| `Net::HTTP::Post.new(uri, headers)` | `urllib.request.Request(url, data, headers, method="POST")` |
+| `http.use_ssl = uri.scheme == "https"` | Auto-detected by `urlopen` when scheme is `https` |
+| `OpenSSL::SSL::VERIFY_PEER` | `ssl.create_default_context()` |
+| `rescue *TRANSIENT_ERRORS` | `except tuple(TRANSIENT_ERRORS)` |
+| `sleep retry_delay(attempt)` | `time.sleep(delay)` |
+| `JSON.parse(response.body)` | `json.loads(resp.read().decode("utf-8"))` |
 
----
+### Transient errors mapping
 
-## Architecture
+| Ruby Exception | Python Equivalent |
+|---|---|
+| `EOFError` | `ConnectionError` |
+| `Errno::ECONNRESET` | `ConnectionResetError` (subclass of `ConnectionError`) |
+| `Errno::ECONNREFUSED` | `ConnectionRefusedError` (subclass of `ConnectionError`) |
+| `Net::OpenTimeout` | `TimeoutError` |
+| `Net::ReadTimeout` | `TimeoutError` |
+| `OpenSSL::SSL::SSLError` | `ssl.SSLError` |
+| `SocketError` | `OSError` (socket.error is OSError in Python 3) |
+| `Timeout::Error` | `TimeoutError` |
 
-```
-Config → player_settings, system_prompt
-                ↓
-Context + Registry → messages, tools
-                ↓
-Backend → to_payload(), headers(), url()
-                ↓
-PromptBuilder → .to_api_payload(), .headers(), .url()
-                ↓
-Client.call() → HTTP POST → JSON response
-```
+Also need `urllib.error.HTTPError` handled separately (raised by `urlopen` for non-2xx status).
 
-### `client.rb` (78 LOC) — what to port
+## Retry Logic (Porting Recipe)
 
 ```ruby
-class Client
-  RETRYABLE_STATUS_CODES = [408, 409, 429, 500, 502, 503, 504]
-  TRANSIENT_ERRORS = [EOFError, ECONNRESET, ...]
-  MAX_RETRIES = 3
-  BASE_RETRY_DELAY = 0.5
-
-  def initialize(builder)       # @builder = builder
-  def call(max_output_tokens:)   # → parsed JSON hash
-    # 1. Build URI, Net::HTTP, enable SSL if https
-    # 2. POST with builder.headers + builder.to_api_payload.to_json
-    # 3. Retry loop: catch TRANSIENT_ERRORS, check retryable status codes
-    # 4. Exponential backoff: BASE_RETRY_DELAY * 2^(attempt-1)
-    # 5. Raise ApiError on non-2xx
-    # 6. JSON.parse(response.body)
+loop do
+  attempts += 1
+  begin
+    response = http.request(request)
+  rescue *TRANSIENT_ERRORS => e
+    raise ApiError if attempts > MAX_RETRIES
+    sleep retry_delay(attempts)
+    next
   end
+  if retryable_response?(response) && attempts <= MAX_RETRIES
+    sleep retry_delay(attempts)
+    next
+  end
+  break
 end
+unless response.is_a?(Net::HTTPSuccess)
+  raise ApiError
+end
+JSON.parse(response.body)
 ```
 
-**Python notes:**
-- Use `urllib.request` or `http.client` from stdlib (no external dep). Ruby uses `net/http` — match with Python's `urllib.request`.
-- SSL: `context = ssl.create_default_context()` when scheme is `"https"`.
-- `TRANSIENT_ERRORS`: map Ruby exceptions (`EOFError`, `Errno::ECONNRESET`, `Timeout::Error`, `socket.error`, `ssl.SSLError`) to Python equivalents (`ConnectionError`, `TimeoutError`, `ssl.SSLError`, `socket.gaierror`, etc.).
-- `sleep()` between retries via `time.sleep()`.
-- Raise `ApiError` with message including status code and body.
-
-### `errors.rb` change
-
-Add `ApiError` alongside existing errors:
-
-```ruby
-class UnknownToolError < StandardError; end
-class ApiError         < StandardError; end
-class UnsupportedModelError < StandardError; end
-```
-
-Python: one extra line `class ApiError(Exception): pass` in `boukensha/errors.py`.
-
-### `prompts/system.md` — new content
-
-Overwrite `boukensha/prompts/system.md` with:
-
-```
-You are Boukensha, an autonomous player exploring a CircleMUD world.
-
-Use available tools to observe the world, act deliberately, and explain only what matters for the current turn.
-```
-
-### `example.rb` changes (83 LOC)
-
-The example now:
-1. Same setup as Step 03 (Config, Player.system_prompt, Context, Registry, tools, messages)
-2. Dispatches backend by `provider` string (already done in Step 03)
-3. Creates `PromptBuilder.new(ctx, backend)`
-4. Creates `Client.new(builder)`
-5. Prints `builder.url` to show the endpoint
-6. Calls `client.call` (with no args, defaults `max_output_tokens=1024`)
-7. Prints `JSON.pretty_generate(response)`
-
-**Key differences from Step 03's example:**
-- Tools changed: now `read_file` and `list_directory` (real file system operations) instead of `look` / `move`
-- Messages changed: now a single user message `"What files are in the current directory?"` instead of 3 simulated messages
-- Calls `client.call` instead of just printing `builder.to_api_payload()`
-- Uses the `when "opencode"` case (same as other backends, just different env var)
+Python equivalent:
+- `HTTPError` caught before other transient errors (because it has `.code` for status-based retry)
+- Transient network errors caught as a tuple
+- After loop, non-2xx status raises `ApiError`
 
 ---
 
 ## Files to Create / Modify
 
-| Action | File | Notes |
-|---|---|---|
-| UPDATE | `boukensha/errors.py` | Add `class ApiError(Exception): pass` |
-| CREATE | `boukensha/client.py` | Port of `Client` — HTTP POST, retry, SSL |
-| OVERWRITE | `boukensha/prompts/system.md` | New Boukensha MUD prompt |
-| UPDATE | `boukensha/__init__.py` | Import `Client`, add `ApiError` to imports + `__all__` |
-| REWRITE | `examples/example.py` | Use `Client.call()`, `read_file`/`list_directory` tools, print raw response |
-
----
+| Action | File |
+|---|---|
+| CREATE | `boukensha/client.py` |
+| UPDATE | `boukensha/errors.py` — add `ApiError` |
+| UPDATE | `boukensha/__init__.py` — add `Client`, `ApiError` |
+| UPDATE | `boukensha/tasks/base.py` — nil guard in `_fetch` |
+| OVERWRITE | `examples/example.py` — `read_file`/`list_directory`, `Client.call` |
+| OVERWRITE | `boukensha/prompts/system.md` — new system prompt |
 
 ## Questions
 
-1. **Which Python HTTP lib?** Ruby uses `net/http` from stdlib. In Python we can use `urllib.request` — same level of abstraction, no external dep. Or `http.client`. Pick one for consistency. **(suggest: `urllib.request`)**
+1. **User-Agent header** — Ruby's `net/http` defaults to `"Ruby"` which is typically allowed. Python's `urllib.request` defaults to `"Python-urllib/3.x"` which OpenCode blocks with 403. Should we set a custom User-Agent like `"boukensha/0.1.0"` in the Client? It's cleaner to set it per-backend (each backend's `headers()` already includes `Content-Type`), but the User-Agent should be set at the Client level or in each backend.
+   - Decision: Set `User-Agent: boukensha/0.1.0` in each backend's `headers()` dict since that's where HTTP headers are defined. Or set it in the Client itself as a fallback. **Set in the Client's `call()` method as a default header** — overridable by backend headers.
 
-2. **SSL cert config?** Ruby has a commented-out `ca_file = OpenSSL::X509::DEFAULT_CERT_FILE` line. Python's `ssl.create_default_context()` handles system certs automatically. Leave it default. Port the comment if you want.
-
-3. **`OpenCode` url bug?** Python's `OpenAI.url()` uses `self.BASE_URL` — correctly resolves through MRO. No workaround needed, unlike Ruby.
+2. **`config.rb` PROMPTS_DIR path change** — Ruby 04 changed `PROMPTS_DIR` from `../../prompts` to `../../../prompts` relative to `config.rb`. This is a Ruby-specific path quirk. Python's `PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"` already resolves to `boukensha/prompts/` inside the package, which is correct for both steps. **No action needed.**

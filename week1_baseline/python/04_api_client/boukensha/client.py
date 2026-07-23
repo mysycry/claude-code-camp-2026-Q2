@@ -1,4 +1,5 @@
 import json
+import socket
 import ssl
 import time
 import urllib.error
@@ -6,57 +7,62 @@ import urllib.request
 
 from boukensha.errors import ApiError
 
-RETRYABLE_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
-TRANSIENT_ERRORS = (
-    ConnectionError,
-    ConnectionResetError,
-    ConnectionRefusedError,
-    TimeoutError,
-    ssl.SSLError,
-)
-MAX_RETRIES = 3
-BASE_RETRY_DELAY = 0.5
-
 
 class Client:
+    RETRYABLE_STATUS_CODES = (408, 409, 429, 500, 502, 503, 504)
+    TRANSIENT_ERRORS = (
+        urllib.error.URLError,
+        ConnectionError,
+        TimeoutError,
+        ssl.SSLError,
+        OSError,
+    )
+    MAX_RETRIES = 3
+    BASE_RETRY_DELAY = 0.5
+    USER_AGENT = "boukensha/0.1.0"
+
     def __init__(self, builder):
         self._builder = builder
 
     def call(self, max_output_tokens=1024):
         url = self._builder.url()
-        data = json.dumps(self._builder.to_api_payload(max_output_tokens=max_output_tokens)).encode("utf-8")
-        headers = self._builder.headers()
+        headers = dict(self._builder.headers())
+        headers.setdefault("User-Agent", self.USER_AGENT)
 
-        safe_headers = dict(headers)
-        safe_headers.setdefault("User-Agent", "boukensha/0.1.0")
-        req = urllib.request.Request(url, data=data, headers=safe_headers, method="POST")
+        payload = self._builder.to_api_payload(max_output_tokens=max_output_tokens)
+        data = json.dumps(payload).encode("utf-8")
 
-        context = None
-        if url.startswith("https"):
-            context = ssl.create_default_context()
+        ssl_ctx = ssl.create_default_context()
 
-        attempts = 0
-        while True:
-            attempts += 1
+        for attempt in range(1, self.MAX_RETRIES + 2):
             try:
-                response = urllib.request.urlopen(req, context=context, timeout=60)
-                body = response.read().decode("utf-8")
-                return json.loads(body)
-            except tuple(TRANSIENT_ERRORS) as e:
-                if attempts > MAX_RETRIES:
-                    raise ApiError(
-                        f"API request failed after {attempts} attempts: {type(e).__name__}: {e}"
-                    ) from e
-                time.sleep(_retry_delay(attempts))
+                req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+                with urllib.request.urlopen(req, context=ssl_ctx, timeout=30) as resp:
+                    body = resp.read().decode("utf-8")
+                    if resp.status in self.RETRYABLE_STATUS_CODES and attempt <= self.MAX_RETRIES:
+                        time.sleep(self._retry_delay(attempt))
+                        continue
+                    if resp.status >= 400:
+                        raise ApiError(
+                            f"API request failed after {attempt} attempt{'s' if attempt != 1 else ''} ({resp.status}): {body}"
+                        )
+                    return json.loads(body)
             except urllib.error.HTTPError as e:
-                if e.code in RETRYABLE_STATUS_CODES and attempts <= MAX_RETRIES:
-                    time.sleep(_retry_delay(attempts))
+                status = e.code
+                error_body = e.read().decode("utf-8", errors="replace")
+                if status in self.RETRYABLE_STATUS_CODES and attempt <= self.MAX_RETRIES:
+                    time.sleep(self._retry_delay(attempt))
                     continue
-                body = e.read().decode("utf-8", errors="replace")
                 raise ApiError(
-                    f"API request failed after {attempts} attempt{'s' if attempts != 1 else ''} ({e.code}): {body}"
-                ) from e
+                    f"API request failed after {attempt} attempt{'s' if attempt != 1 else ''} ({status}): {error_body}"
+                )
+            except self.TRANSIENT_ERRORS as e:
+                if attempt > self.MAX_RETRIES:
+                    raise ApiError(
+                        f"API request failed after {attempt} attempts: {type(e).__name__}: {e}"
+                    )
+                time.sleep(self._retry_delay(attempt))
 
-
-def _retry_delay(attempt):
-    return BASE_RETRY_DELAY * (2 ** (attempt - 1))
+    @staticmethod
+    def _retry_delay(attempt):
+        return Client.BASE_RETRY_DELAY * (2 ** (attempt - 1))

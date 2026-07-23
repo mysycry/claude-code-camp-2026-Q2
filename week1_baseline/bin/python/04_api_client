@@ -14,5 +14,6 @@ if [ ! -f "$PYTHON" ]; then
   exit 1
 fi
 
+export PYTHONIOENCODING=utf-8
 cd "$ROOT/week1_baseline/python/04_api_client"
 "$PYTHON" examples/example.py

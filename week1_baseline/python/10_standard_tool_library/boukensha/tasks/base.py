@@ -6,8 +6,6 @@ class Base:
 
     @classmethod
     def _fetch(cls, settings, key):
-        if not isinstance(settings, dict):
-            return None
         return settings.get(key)
 
     @classmethod
@@ -56,5 +54,18 @@ class Base:
         return cls._read_default_prompt(name, default_prompts_dir=default_prompts_dir)
 
     @classmethod
+    def max_iterations(cls, settings):
+        return cls._integer_setting(settings, "max_iterations", 25)
+
+    @classmethod
+    def max_output_tokens(cls, settings):
+        return cls._integer_setting(settings, "max_output_tokens", 1024)
+
+    @classmethod
     def system_prompt(cls, settings, user_prompts_dir=None, default_prompts_dir=None):
         return cls.prompt(settings, "system", user_prompts_dir=user_prompts_dir, default_prompts_dir=default_prompts_dir)
+
+    @classmethod
+    def _integer_setting(cls, settings, key, default):
+        value = cls._fetch(settings, key)
+        return int(value) if value is not None else default
