@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "mud_manager"
+
+user = ENV.fetch("MUD_USERNAME", "TestChar")
+pass = ENV.fetch("MUD_PASSWORD", "testpass")
+
+s = MudManager::Session.new(host:"localhost", port:4000, timeout:5)
+s.open; s.login(user, pass)
+
+def c(s,t); s.drain; s.send_command(t); s.read_until_prompt(timeout:5); end
+def st(t); t.gsub(/\e\[[\d;]*m/,""); end
+
+$stdout.sync = true
+
+# Simple exploration: go a direction, look, list mobs
+# Start at temple, try going various directions
+directions_to_try = [
+  "s", "s", "s", "s",     # south from Temple toward Midgaard square
+  "e", "e", "e", "e",     # east from temple square
+  "w", "w", "w", "w",     # west from temple square  
+  "d",                     # down (sewer?)
+]
+
+seen_rooms = {}
+
+directions_to_try.each do |d|
+  r = c(s, d)
+  text = st(r)
+  next if text.include?("can't go")
+  
+  name = text.lines.first&.strip || "???"
+  # Use room name as simple dedup
+  next if seen_rooms[name]
+  seen_rooms[name] = true
+  
+  exits = text[/\[ Exits: ([^\]]+)\s*\]/, 1] || "?"
+  mobs = text.each_line.select { |l| l.match?(/\s+is\s+(here|standing|sitting|resting|lying)/i) }
+  
+  puts "--- #{name} [Exits: #{exits}] ---"
+  if mobs.any?
+    mobs.each { |m| puts "  #{m.strip}" }
+  else
+    puts "  (no mobs)"
+  end
+end
+
+s.close

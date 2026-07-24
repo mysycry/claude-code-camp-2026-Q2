@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mud-manager": {
+      "type": "local",
+      "command": [
+        "C:\\Ruby40-x64\\bin\\ruby.exe",
+        "C:\\Users\\josia\\OneDrive\\Desktop\\claude-code-camp-2026-Q2\\week1_baseline\\ruby\\10_standard_tool_library\\bin\\mud_mcp"
+      ],
+      "env": {
+        "MUD_HOST": "localhost",
+        "MUD_PORT": "4000",
+        "MUD_USERNAME": "dummy",
+        "MUD_PASSWORD": "helloworld"
+      },
+      "enabled": true
+    }
+  }
+}
