@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "mud_manager"
+
+host     = ENV.fetch("MUD_HOST", "localhost")
+port     = ENV.fetch("MUD_PORT", "4000").to_i
+username = ENV["MUD_USERNAME"]
+password = ENV["MUD_PASSWORD"]
+needed   = ENV.fetch("MUD_KILLS", "10").to_i
+abort "Set MUD_USERNAME and MUD_PASSWORD" unless username && password
+
+session = MudManager::Session.new(host: host, port: port, timeout: 5)
+session.open
+session.login(username, password)
+
+def cmd(s, text)
+  s.drain; s.send_command(text); s.read_until_prompt(timeout: 10)
+end
+
+def st(t); t.gsub(/\e\[[\d;]*m/, ""); end
+
+$stdout.sync = true
+DIRS = %w[n e s w]
+kills = 0; xp = 0; gold = 0; t0 = Time.now; stuck = 0
+
+puts "Starting grind as #{username}..."
+
+while kills < needed
+  # Look for mobs
+  look = cmd(session, "look")
+  text = st(look)
+  mobs = text.each_line.select { |l| l.match?(/\s+is\s+(here|standing|sitting|resting|lying)/i) }
+
+  if mobs.any?
+    stuck = 0
+    name = mobs.first.sub(/\s+is\s+(standing|sitting|resting|lying|here).*/i, "").strip
+    target = name.split(/\s+/).first(2).join(" ")
+
+    puts "[#{kills + 1}/#{needed}] Attacking #{target}..."
+
+    killed = false
+    20.times do
+      r = cmd(session, "kill #{target}")
+      out = st(r)
+      if out.include?("You receive") || out.include?("You have slain")
+        killed = true
+        break
+      elsif out.include?("is already fighting")
+        break
+      end
+    end
+
+    if killed
+      kills += 1
+      loot = cmd(session, "get all corpse")
+      lt = st(loot)
+      gold += lt[/You get (\d+) gold/i, 1].to_i rescue 0
+      xp   += lt[/You receive (\d+) experience/i, 1].to_i rescue 0
+      cmd(session, "drop all")
+      elapsed = Time.now - t0
+      rate = kills / elapsed * 60 if elapsed > 0
+      puts "  killed! xp=#{xp} gold=#{gold} #{(rate || 0).round(0)}/min"
+    end
+
+    if kills % 5 == 0 || kills == needed
+      score = cmd(session, "score")
+      st(score).each_line { |l| puts "  #{l.strip}" if l.include?("exp,") || l.include?("gold coins") || l.include?("level") || l.include?("You have") }
+    end
+  else
+    # Move to next room
+    moved = false
+    DIRS.shuffle.each do |d|
+      r = cmd(session, d)
+      unless st(r).include?("can't go")
+        moved = true
+        break
+      end
+    end
+
+    unless moved
+      stuck += 1
+      if stuck > 5
+        # Teleport back to temple (immortal recall)
+        cmd(session, "recall")
+        stuck = 0
+      end
+      sleep 1
+    end
+  end
+
+  # Rest if low HP
+  score = cmd(session, "score")
+  hp = st(score)[/You have (\d+)\(\d+\) hit/i, 1].to_i rescue 99
+  if hp < 10
+    cmd(session, "rest")
+    sleep 4
+    cmd(session, "stand")
+  end
+end
+
+elapsed = Time.now - t0
+puts "\n=== GRIND COMPLETE ==="
+puts "Kills: #{kills} | XP: #{xp} | Gold: #{gold} | Time: #{elapsed.round(0)}s"
+puts st(cmd(session, "score"))
+session.close

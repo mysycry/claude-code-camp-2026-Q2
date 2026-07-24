@@ -1,0 +1,12 @@
+source "https://rubygems.org"
+
+gem "dotenv"
+
+# Optional — installed globally, not required by the gemspec.
+gem "mud_manager"
+
+# TUI (optional) — install separately with `gem install charm` if desired.
+# The plain REPL works without it via boukensha --no-tui.
+# gem "charm"
+
+gemspec

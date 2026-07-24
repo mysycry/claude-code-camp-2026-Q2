@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "mud_manager"
+
+s = MudManager::Session.new(host: "localhost", port: 4000, timeout: 5)
+s.open
+s.login("dummy", "helloworld")
+output = s.read_until_prompt(timeout: 5)
+puts "LOGIN OK: #{output.lines.first(3).map(&:strip).join('; ')}"
+
+# Just look around
+s.drain
+s.send_command("look")
+r = s.read_until_prompt(timeout: 5)
+puts "LOOK: #{r.lines.first(5).map(&:strip).reject(&:empty?).first(3).join(' | ')}"
+
+# Try south
+s.drain
+s.send_command("s")
+r = s.read_until_prompt(timeout: 5)
+puts "SOUTH: #{r.lines.first(3).map(&:strip).reject(&:empty?).first(2).join(' | ')}"
+
+s.close
+puts "DONE"

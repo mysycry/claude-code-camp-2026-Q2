@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "mud_manager"
+
+$stdout.sync = true
+$stderr.sync = true
+
+puts "Creating session..."
+s = MudManager::Session.new(host:"localhost", port:4000, timeout:5)
+
+puts "Opening..."
+s.open
+puts "Logging in..."
+s.login("dummy", "helloworld")
+puts "LOGGED IN"
+
+puts "Looking..."
+s.drain
+s.send_command("look")
+r = s.read_until_prompt(timeout:5)
+puts r.gsub(/\e\[[\d;]*m/, "").lines.first(5).reject(&:empty?).first(3).join("; ")
+
+puts "Trying south..."
+s.drain
+s.send_command("s")
+r = s.read_until_prompt(timeout:5)
+puts r.gsub(/\e\[[\d;]*m/, "").lines.first(3).reject(&:empty?).first(2).join("; ")
+
+puts "Looking around..."
+s.drain
+s.send_command("look")
+r = s.read_until_prompt(timeout:5)
+text = r.gsub(/\e\[[\d;]*m/, "")
+mobs = text.each_line.select { |l| l.match?(/\s+is\s+(here|standing)/i) }
+puts "Mobs found: #{mobs.size}"
+mobs.each { |m| puts "  - #{m.strip}" }
+
+puts "DONE"
+s.close
