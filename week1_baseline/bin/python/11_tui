@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+VENV="$ROOT/.venv"
+PYTHON="$VENV/Scripts/python"
+if [ -f "${PYTHON}.exe" ]; then
+  PYTHON="${PYTHON}.exe"
+fi
+
+if [ ! -f "$PYTHON" ]; then
+  echo "ERROR: Virtual environment not found at $VENV" >&2
+  echo "Run: python -m venv \"$VENV\"" >&2
+  exit 1
+fi
+
+export PYTHONIOENCODING=utf-8
+
+# Handle --no-tui flag: strip it and notify the Python process via env var.
+ARGS=()
+NO_TUI=false
+for arg in "$@"; do
+  if [ "$arg" = "--no-tui" ]; then
+    NO_TUI=true
+  else
+    ARGS+=("$arg")
+  fi
+done
+if [ "$NO_TUI" = true ]; then
+  export BOUKENSHA_NO_TUI=1
+fi
+
+cd "$ROOT/week1_baseline/python/11_tui"
+"$PYTHON" examples/example.py "${ARGS[@]}"
