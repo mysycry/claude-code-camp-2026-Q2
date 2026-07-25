@@ -1,0 +1,10 @@
+source "https://rubygems.org"
+
+gem "dotenv"
+gem "mud_manager"
+
+# TUI (optional) — install separately with `gem install charm` if desired.
+# The plain REPL works without it via --no-tui.
+# gem "charm"
+
+gemspec
