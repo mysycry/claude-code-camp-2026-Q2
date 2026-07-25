@@ -1,0 +1,1 @@
+{"phase": "session_start", "max_iterations": 25, "max_turn_tokens": 60000, "max_output_tokens": 1024, "context_window": 32000, "model": "deepseek-v4-flash-free", "provider": "opencode", "session_id": "20260725T002019Z-d44570c5", "at": "2026-07-25T00:20:19.302650+00:00"}
