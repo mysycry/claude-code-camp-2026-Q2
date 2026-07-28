@@ -86,7 +86,7 @@ _BACKEND_CLASSES = {
 def run(task, system=None, model=None, backend=None, api_key=None,
         ollama_host="http://localhost:11434", log=None, context_window=None,
         max_output_tokens=None, working_dir=None, allowed_commands=None,
-        shell_timeout=30, mud=None, *, block=None):
+        shell_timeout=30, mud=None, hooks=None, *, block=None):
     cfg = _get_config()
 
     if system is None:
@@ -148,6 +148,7 @@ def run(task, system=None, model=None, backend=None, api_key=None,
         logger=logger, max_iterations=effective_max_iterations,
         max_turn_tokens=effective_max_turn_tokens,
         max_output_tokens=effective_max_output_tokens,
+        hooks=hooks,
     )
 
     ctx.add_message("user", task)
@@ -161,7 +162,7 @@ def run(task, system=None, model=None, backend=None, api_key=None,
 def repl(system=None, model=None, backend=None, api_key=None,
          ollama_host="http://localhost:11434", log=None, context_window=None,
          max_output_tokens=None, working_dir=None, allowed_commands=None,
-         shell_timeout=30, mud=None, tui=True, *, block=None):
+         shell_timeout=30, mud=None, tui=True, hooks=None, *, block=None):
     if os.environ.get("BOUKENSHA_NO_TUI"):
         tui = False
 
@@ -229,6 +230,7 @@ def repl(system=None, model=None, backend=None, api_key=None,
         max_output_tokens=effective_max_output_tokens,
         config_dir=cfg.dir, provider=backend, model=model,
         version=VERSION, api_key=api_key, mud=resolved_mud,
+        hooks=hooks,
     )
 
     try:

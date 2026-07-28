@@ -19,7 +19,8 @@ Commands:
 class Repl:
     def __init__(self, context=None, registry=None, builder=None, client=None, logger=None,
                  config_dir=None, provider=None, model=None, version=None, api_key=None,
-                 max_iterations=None, max_turn_tokens=None, max_output_tokens=None, mud=None):
+                 max_iterations=None, max_turn_tokens=None, max_output_tokens=None,
+                 mud=None, hooks=None):
         self.context = context
         self.registry = registry
         self.builder = builder
@@ -34,6 +35,7 @@ class Repl:
         self.version = version
         self.api_key = api_key
         self.mud = mud
+        self.hooks = hooks
         self.turn = 0
         self._output_cb = None
 
@@ -101,6 +103,7 @@ class Repl:
             max_iterations=self.max_iterations,
             max_turn_tokens=self.max_turn_tokens,
             max_output_tokens=self.max_output_tokens,
+            hooks=self.hooks,
         )
         try:
             result = agent.run()

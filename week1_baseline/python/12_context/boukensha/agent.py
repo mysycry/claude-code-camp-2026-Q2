@@ -13,7 +13,7 @@ WRAP_UP_DIRECTIVE = (
 class Agent:
     def __init__(self, context=None, registry=None, builder=None, client=None,
                  logger=None, max_iterations=None, max_turn_tokens=None,
-                 max_output_tokens=None):
+                 max_output_tokens=None, hooks=None):
         self.context = context
         self.registry = registry
         self.builder = builder
@@ -23,10 +23,20 @@ class Agent:
         self.max_turn_tokens = max_turn_tokens or 0
         self.max_output_tokens = max_output_tokens
         self.iteration = 0
+        self.hooks = hooks or {}
+
+    def _run_hook(self, name, *args):
+        fn = self.hooks.get(name)
+        if fn is not None:
+            try:
+                fn(*args)
+            except Exception as e:
+                self.logger.raw(data={"hook_error": name, "exception": f"{type(e).__name__}: {e}"})
 
     def run(self):
         self.context.reset_turn_tokens()
         self._compact_if_needed()
+        self._run_hook("before_turn", self.context)
 
         while True:
             if self._iteration_limit_reached():
@@ -50,9 +60,12 @@ class Agent:
                 context_window=self.context.context_window,
             )
 
-            response = self.client.call(**self._call_opts())
+            call_opts = self._call_opts()
+            self._run_hook("before_model", self.context, call_opts)
+            response = self.client.call(**call_opts)
             self.logger.raw(data=response)
             parsed = self.builder.parse_response(response)
+            self._run_hook("after_model", self.context, response, parsed)
             self._record_usage(response)
             self._log_reasoning(parsed.get("content", []))
 
@@ -73,6 +86,7 @@ class Agent:
                     tokens=self.context.turn_tokens,
                 )
                 self.context.add_message("assistant", text)
+                self._run_hook("after_turn", self.context, text)
                 return text
 
     def _iteration_limit_reached(self):
@@ -103,8 +117,11 @@ class Agent:
 
     def _wrap_up(self, reason):
         self.context.add_message("user", WRAP_UP_DIRECTIVE)
-        response = self.client.call(tools=[], max_output_tokens=WRAP_UP_OUTPUT_TOKENS)
+        wrap_opts = {"tools": [], "max_output_tokens": WRAP_UP_OUTPUT_TOKENS}
+        self._run_hook("before_model", self.context, wrap_opts)
+        response = self.client.call(**wrap_opts)
         parsed = self.builder.parse_response(response)
+        self._run_hook("after_model", self.context, response, parsed)
         text = _extract_text(parsed.get("content", []))
         if not text.strip():
             text = self._fallback_message(reason)
@@ -118,6 +135,7 @@ class Agent:
             tokens=self.context.turn_tokens,
         )
         self.context.add_message("assistant", text)
+        self._run_hook("after_turn", self.context, text)
         return text
 
     def _fallback_message(self, reason):
@@ -155,13 +173,17 @@ class Agent:
             args = block.get("input", {})
             use_id = block.get("id")
 
+            self._run_hook("before_tool", self.context, name, args)
             self.logger.tool_call(name=name, args=args)
+            error = None
             try:
                 result = self.registry.dispatch(name, args)
                 self.logger.tool_result(name=name, result=result, ok=True)
             except Exception as e:
+                error = e
                 result = f"ERROR: {type(e).__name__}: {e}"
                 self.logger.tool_result(name=name, result=result, ok=False, error=str(e))
+            self._run_hook("after_tool", self.context, name, args, result, error)
 
             self.context.add_message("tool_result", str(result), tool_use_id=use_id)
 
