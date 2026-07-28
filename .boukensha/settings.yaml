@@ -9,3 +9,9 @@ mud:
   port: 4000
   username: dummy
   password: helloworld
+
+reset:
+  admin:
+    username: dummy
+    password: helloworld
+  start_room: "3001"
