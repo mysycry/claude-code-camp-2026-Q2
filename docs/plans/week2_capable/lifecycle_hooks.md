@@ -1,0 +1,54 @@
+# Goal: Add lifecycle hooks so external code can observe and react to agent events
+
+> Design plan for the hooks system. Implementation was cross-cutting across 4 files.
+
+# Lifecycle Hooks — Plan
+
+## Hook Points
+
+| Hook | When | Signature |
+|------|------|-----------|
+| `before_turn` | Start of `Agent.run()`, after reset/compact | `fn(context)` |
+| `after_turn` | When `run()` returns (normal + wrap_up) | `fn(context, result)` |
+| `before_model` | Before `client.call()` in main loop & wrap_up | `fn(context, call_opts)` |
+| `after_model` | After `builder.parse_response()` | `fn(context, response, parsed)` |
+| `before_tool` | Before `registry.dispatch()` per tool | `fn(context, name, args)` |
+| `after_tool` | After tool dispatch (success or error) | `fn(context, name, args, result, error)` |
+
+## Interface
+
+A `hooks` dict with optional callables, threaded through:
+
+```
+boukensha.run(hooks=...) → Agent(hooks=...)
+boukensha.repl(hooks=...) → Repl(hooks=...) → Agent(hooks=...)
+```
+
+## Implementation (4 files)
+
+1. **`boukensha/agent.py`** — add `hooks=None` param, store as `self.hooks` (default `{}`),
+   add `_run_hook(name, *args)` helper, call at each hook point
+2. **`boukensha/__init__.py`** — add `hooks=None` to `run()` and `repl()`, pass through to Agent/Repl
+3. **`boukensha/repl.py`** — add `hooks=None` to `Repl.__init__()`, pass through to Agent in `run_turn()`
+4. **`docs/plans/week2_capable/lifecycle_hooks`** — this plan (done)
+
+## Verification
+
+```python
+captured = []
+def my_hook(name, *args):
+    captured.append((name, args))
+
+hooks = {
+    "before_turn": lambda ctx: my_hook("before_turn", len(ctx.messages)),
+    "after_turn": lambda ctx, result: my_hook("after_turn", result),
+    "before_model": lambda ctx, opts: my_hook("before_model", opts),
+    "after_model": lambda ctx, resp, parsed: my_hook("after_model", parsed.get("stop_reason")),
+    "before_tool": lambda ctx, name, args: my_hook("before_tool", name),
+    "after_tool": lambda ctx, name, args, result, err: my_hook("after_tool", name, err),
+}
+
+result = run("say hello", hooks=hooks)
+assert "before_turn" in [c[0] for c in captured]
+assert "after_turn" in [c[0] for c in captured]
+```
