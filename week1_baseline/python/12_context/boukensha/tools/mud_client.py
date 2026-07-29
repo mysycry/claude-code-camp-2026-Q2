@@ -1,8 +1,10 @@
 import json
+import os
 import socket
 from pathlib import Path
 
-PORT_FILE = Path.home() / ".mud_manager" / "port"
+_mud_dir = os.environ.get("MUD_MANAGER_DIR") or str(Path.home() / ".mud_manager")
+PORT_FILE = Path(_mud_dir) / "port"
 
 
 class MudDaemonClient:
@@ -14,7 +16,8 @@ class MudDaemonClient:
         self._host = "127.0.0.1"
 
     def _send(self, request):
-        sock = socket.create_connection((self._host, self._port), timeout=10)
+        sock = socket.create_connection((self._host, self._port), timeout=5)
+        sock.settimeout(20)
         try:
             sock.sendall((json.dumps(request) + "\n").encode("utf-8"))
             data = sock.recv(65536).decode("utf-8")

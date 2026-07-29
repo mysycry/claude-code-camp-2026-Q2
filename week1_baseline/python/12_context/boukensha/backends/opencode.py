@@ -84,10 +84,12 @@ class OpenCode(Base):
         }
 
     def headers(self):
-        return {
+        headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self._api_key}",
         }
+        if self._api_key:
+            headers["x-api-key"] = self._api_key
+        return headers
 
     def url(self):
         return self.BASE_URL

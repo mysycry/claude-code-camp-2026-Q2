@@ -27,7 +27,7 @@ class Client:
         data = json.dumps(self._builder.to_api_payload(max_output_tokens=max_output_tokens, tools=tools)).encode("utf-8")
         headers = self._builder.headers()
 
-        safe_headers = dict(headers)
+        safe_headers = {k: v for k, v in headers.items() if v is not None}
         safe_headers.setdefault("User-Agent", "boukensha/0.1.0")
         req = urllib.request.Request(url, data=data, headers=safe_headers, method="POST")
 

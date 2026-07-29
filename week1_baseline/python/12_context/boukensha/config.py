@@ -5,7 +5,8 @@ import yaml
 from dotenv import load_dotenv
 
 
-DEFAULT_DIR = os.path.join(os.path.expanduser("~"), ".boukensha")
+_cwd_boukensha = os.path.join(os.getcwd(), ".boukensha")
+DEFAULT_DIR = _cwd_boukensha if os.path.isdir(_cwd_boukensha) else os.path.join(os.path.expanduser("~"), ".boukensha")
 
 
 class Config:

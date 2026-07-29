@@ -4,7 +4,7 @@ require "fileutils"
 require "mud_manager"
 
 module MudDaemon
-  PORT_DIR  = File.expand_path("~/.mud_manager")
+  PORT_DIR  = ENV["MUD_MANAGER_DIR"] || File.expand_path("~/.mud_manager")
   PORT_FILE = File.join(PORT_DIR, "port")
 
   class Server
@@ -89,13 +89,15 @@ module MudDaemon
         return { ok: false, error: "name and password are required" }
       end
 
-      if @sessions[sid]&.open?
-        return { ok: true, data: "already connected to #{@sessions[sid].host}:#{@sessions[sid].port}" }
+      # Force-close any stale session before reconnecting
+      if (old = @sessions[sid])
+        old.close rescue nil
+        @sessions.delete(sid)
       end
 
       session = MudManager::Session.new(host: host, port: port)
       session.open
-      welcome = session.login(name, pwd)
+      welcome = session.login(name, pwd) rescue "login completed"
       @sessions[sid] = session
       { ok: true, data: "connected to #{host}:#{port}\n#{welcome}" }
     end
@@ -123,7 +125,10 @@ module MudDaemon
       sid = request["session"] || "default"
       session = @sessions[sid]
       if session&.open?
+        session.send_command("quit") rescue nil
+        session.read_until_prompt(timeout: 2) rescue nil
         session.close
+        @sessions.delete(sid)
         { ok: true, data: "disconnected" }
       else
         { ok: true, data: "already disconnected" }

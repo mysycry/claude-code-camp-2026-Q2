@@ -290,6 +290,10 @@ class Mud:
 
 def _mud_connect(client, host, port, name, password):
     try:
+        client.disconnect()
+    except Exception:
+        pass
+    try:
         result = client.connect(host=host, port=port, name=name, password=password)
     except (ConnectionRefusedError, ConnectionError, OSError) as e:
         import warnings

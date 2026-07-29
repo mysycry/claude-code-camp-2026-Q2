@@ -11,3 +11,7 @@ class Message:
         tag = f" [{self.tool_use_id}]" if self.tool_use_id else ""
         content_preview = (self.content or "")[:60]
         return f"<Message role={self.role}{tag} content={content_preview}...>"
+
+    def token_estimate(self):
+        raw = str(self.content or "")
+        return len(raw) // 4

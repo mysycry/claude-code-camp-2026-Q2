@@ -1,6 +1,29 @@
 from boukensha.errors import ApiError
 
 
+class _NullSpanContext:
+    def __enter__(self): return self
+    def __exit__(self, *a): pass
+    def ok(self, **kw): pass
+    def fail(self, msg, **kw): pass
+
+
+class _SpanContext:
+    def __init__(self, tracer, span_id):
+        self.tracer = tracer
+        self.span_id = span_id
+    def __enter__(self): return self
+    def __exit__(self, typ, val, tb):
+        if typ is not None:
+            self.tracer.end_span(self.span_id, "error", str(val))
+        else:
+            self.tracer.end_span(self.span_id, "ok")
+    def ok(self, metadata=None):
+        self.tracer.end_span(self.span_id, "ok", metadata=metadata or {})
+    def fail(self, msg):
+        self.tracer.end_span(self.span_id, "error", msg)
+
+
 MAX_ITERATIONS = 25
 WRAP_UP_OUTPUT_TOKENS = 400
 WRAP_UP_DIRECTIVE = (
@@ -13,7 +36,7 @@ WRAP_UP_DIRECTIVE = (
 class Agent:
     def __init__(self, context=None, registry=None, builder=None, client=None,
                  logger=None, max_iterations=None, max_turn_tokens=None,
-                 max_output_tokens=None, hooks=None):
+                 max_output_tokens=None, hooks=None, tracer=None):
         self.context = context
         self.registry = registry
         self.builder = builder
@@ -24,6 +47,7 @@ class Agent:
         self.max_output_tokens = max_output_tokens
         self.iteration = 0
         self.hooks = hooks or {}
+        self.tracer = tracer
 
     def _run_hook(self, name, *args):
         fn = self.hooks.get(name)
@@ -33,9 +57,20 @@ class Agent:
             except Exception as e:
                 self.logger.raw(data={"hook_error": name, "exception": f"{type(e).__name__}: {e}"})
 
+    def _trace(self, name, phase):
+        if self.tracer is None:
+            return _NullSpanContext()
+        span_id = self.tracer.start_span(name, phase)
+        return _SpanContext(self.tracer, span_id)
+
     def run(self):
+        with self._trace("turn", "turn") as turn_span:
+            return self._run_with_trace(turn_span)
+
+    def _run_with_trace(self, turn_span):
         self.context.reset_turn_tokens()
-        self._compact_if_needed()
+        self.context.inject_here_block()
+        compacted = self._compact_if_needed()
         self._run_hook("before_turn", self.context)
 
         while True:
@@ -62,7 +97,18 @@ class Agent:
 
             call_opts = self._call_opts()
             self._run_hook("before_model", self.context, call_opts)
-            response = self.client.call(**call_opts)
+
+            with self._trace("llm_call", "llm") as llm_span:
+                try:
+                    response = self.client.call(**call_opts)
+                    llm_span.ok(metadata={
+                        "stop_reason": response.get("stop_reason"),
+                        "usage": response.get("usage"),
+                    })
+                except Exception as e:
+                    llm_span.fail(str(e))
+                    raise
+
             self.logger.raw(data=response)
             parsed = self.builder.parse_response(response)
             self._run_hook("after_model", self.context, response, parsed)
@@ -70,11 +116,12 @@ class Agent:
             self._log_reasoning(parsed.get("content", []))
 
             if parsed.get("stop_reason") == "tool_use":
-                result = self._handle_tool_calls(
-                    parsed.get("content", []), response
-                )
-                if result is not None:
-                    return result
+                with self._trace("tool_loop", "tools") as tools_span:
+                    result = self._handle_tool_calls(
+                        parsed.get("content", []), response
+                    )
+                    if result is not None:
+                        return result
             else:
                 text = _extract_text(parsed.get("content", []))
                 self.logger.response(
@@ -108,35 +155,46 @@ class Agent:
     def _compact_if_needed(self):
         if not self.context.needs_compaction():
             return
-        before = self.context.current_tokens
-        dropped = self.context.compact_messages()
-        self.logger.compaction(
-            before=before, dropped=dropped,
-            context_window=self.context.context_window,
-        )
+        with self._trace("compaction", "compaction") as span:
+            before = self.context.current_tokens
+            dropped = self.context.compact_messages()
+            self.logger.compaction(
+                before=before, dropped=dropped,
+                context_window=self.context.context_window,
+            )
+            span.ok(metadata={
+                "before": before, "dropped": dropped,
+                "after": self.context.current_tokens,
+            })
 
     def _wrap_up(self, reason):
-        self.context.add_message("user", WRAP_UP_DIRECTIVE)
-        wrap_opts = {"tools": [], "max_output_tokens": WRAP_UP_OUTPUT_TOKENS}
-        self._run_hook("before_model", self.context, wrap_opts)
-        response = self.client.call(**wrap_opts)
-        parsed = self.builder.parse_response(response)
-        self._run_hook("after_model", self.context, response, parsed)
-        text = _extract_text(parsed.get("content", []))
-        if not text.strip():
-            text = self._fallback_message(reason)
-        self._record_usage(response)
-        self.logger.response(
-            text=text, usage=response.get("usage"),
-            stop_reason=parsed.get("stop_reason"),
-        )
-        self.logger.turn_end(
-            reason=reason, iterations=self.iteration,
-            tokens=self.context.turn_tokens,
-        )
-        self.context.add_message("assistant", text)
-        self._run_hook("after_turn", self.context, text)
-        return text
+        with self._trace("wrap_up", "wrap_up") as span:
+            self.context.add_message("user", WRAP_UP_DIRECTIVE)
+            wrap_opts = {"tools": [], "max_output_tokens": WRAP_UP_OUTPUT_TOKENS}
+            self._run_hook("before_model", self.context, wrap_opts)
+            try:
+                response = self.client.call(**wrap_opts)
+            except Exception as e:
+                span.fail(str(e))
+                raise
+            parsed = self.builder.parse_response(response)
+            self._run_hook("after_model", self.context, response, parsed)
+            text = _extract_text(parsed.get("content", []))
+            if not text.strip():
+                text = self._fallback_message(reason)
+            self._record_usage(response)
+            self.logger.response(
+                text=text, usage=response.get("usage"),
+                stop_reason=parsed.get("stop_reason"),
+            )
+            self.logger.turn_end(
+                reason=reason, iterations=self.iteration,
+                tokens=self.context.turn_tokens,
+            )
+            self.context.add_message("assistant", text)
+            self._run_hook("after_turn", self.context, text)
+            span.ok(metadata={"reason": reason, "iterations": self.iteration})
+            return text
 
     def _fallback_message(self, reason):
         return (
@@ -173,19 +231,21 @@ class Agent:
             args = block.get("input", {})
             use_id = block.get("id")
 
-            self._run_hook("before_tool", self.context, name, args)
-            self.logger.tool_call(name=name, args=args)
-            error = None
-            try:
-                result = self.registry.dispatch(name, args)
-                self.logger.tool_result(name=name, result=result, ok=True)
-            except Exception as e:
-                error = e
-                result = f"ERROR: {type(e).__name__}: {e}"
-                self.logger.tool_result(name=name, result=result, ok=False, error=str(e))
-            self._run_hook("after_tool", self.context, name, args, result, error)
+            with self._trace(f"tool/{name}", "tool") as tool_span:
+                self._run_hook("before_tool", self.context, name, args)
+                self.logger.tool_call(name=name, args=args)
+                error = None
+                try:
+                    result = self.registry.dispatch(name, args)
+                    self.logger.tool_result(name=name, result=result, ok=True)
+                except Exception as e:
+                    error = e
+                    result = f"ERROR: {type(e).__name__}: {e}"
+                    self.logger.tool_result(name=name, result=result, ok=False, error=str(e))
+                    tool_span.fail(str(e))
+                self._run_hook("after_tool", self.context, name, args, result, error)
 
-            self.context.add_message("tool_result", str(result), tool_use_id=use_id)
+                self.context.add_message("tool_result", str(result), tool_use_id=use_id)
 
 
 def _extract_text(content):
