@@ -24,6 +24,7 @@ def _add_paths():
     ):
         if p not in sys.path:
             sys.path.insert(0, p)
+    os.environ.setdefault("BOUKENSHA_OTEL_ENABLED", "true")
 
 
 _add_paths()
