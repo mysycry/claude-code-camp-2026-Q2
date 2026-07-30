@@ -91,7 +91,7 @@ def run(task, system=None, model=None, backend=None, api_key=None,
         max_iterations=None, max_turn_tokens=None, max_output_tokens=None,
         working_dir=None, allowed_commands=None,
         shell_timeout=30, mud=None, hooks=None, *, block=None,
-        trace_dir=None, memory_path=None, otel_endpoint=None):
+        trace_dir=None, memory_path=None, otel_endpoint=None, allow=None):
     cfg = _get_config()
 
     if system is None:
@@ -112,7 +112,7 @@ def run(task, system=None, model=None, backend=None, api_key=None,
         compaction_threshold=cfg.agent_compaction_threshold(),
         memory_store=memory_store,
     )
-    registry = Registry(ctx)
+    registry = Registry(ctx, allow=allow)
 
     if working_dir:
         FileSystem.register(registry, working_dir=working_dir)
@@ -179,7 +179,7 @@ def repl(system=None, model=None, backend=None, api_key=None,
          max_iterations=None, max_turn_tokens=None, max_output_tokens=None,
          working_dir=None, allowed_commands=None,
          shell_timeout=30, mud=None, tui=True, hooks=None, *, block=None,
-         trace_dir=None, memory_path=None, otel_endpoint=None):
+         trace_dir=None, memory_path=None, otel_endpoint=None, allow=None):
     if os.environ.get("BOUKENSHA_NO_TUI"):
         tui = False
 
@@ -203,7 +203,7 @@ def repl(system=None, model=None, backend=None, api_key=None,
         compaction_threshold=cfg.agent_compaction_threshold(),
         memory_store=memory_store,
     )
-    registry = Registry(ctx)
+    registry = Registry(ctx, allow=allow)
 
     if working_dir:
         FileSystem.register(registry, working_dir=working_dir)

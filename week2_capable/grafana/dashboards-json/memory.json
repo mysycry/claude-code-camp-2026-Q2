@@ -1,4 +1,5 @@
 {
+  "uid": "5082c85a-5acf-4b13-85f9-5cf6ab63ed47",
   "title": "Boukensha Memory",
   "tags": ["boukensha", "memory"],
   "schemaVersion": 38,
@@ -270,6 +271,278 @@
         ],
         "format": "table"
       }]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "World Rooms",
+      "gridPos": {"h": 4, "w": 2, "x": 0, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_rooms", "text": "Rooms", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#3b82f6"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "World Mobs",
+      "gridPos": {"h": 4, "w": 2, "x": 2, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_mobs", "text": "Mobs", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#ef4444"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "World Objects",
+      "gridPos": {"h": 4, "w": 2, "x": 4, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_objects", "text": "Objects", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#f59e0b"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Zones",
+      "gridPos": {"h": 4, "w": 2, "x": 6, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_zones", "text": "Zones", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#8b5cf6"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Shops",
+      "gridPos": {"h": 4, "w": 2, "x": 8, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_shops", "text": "Shops", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#06b6d4"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "World Exits",
+      "gridPos": {"h": 4, "w": 2, "x": 10, "y": 22},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "none",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/stats",
+        "method": "GET",
+        "root": "",
+        "columns": [{"selector": "world_exits", "text": "Exits", "type": "number"}],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#10b981"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "barchart",
+      "title": "Mob Level Distribution",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "orientation": "auto",
+        "groupWidth": 0.7,
+        "barWidth": 0.9,
+        "showValue": "auto",
+        "xTickLabelRotation": 0
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/world/summary",
+        "method": "GET",
+        "root": "level_distribution",
+        "columns": [
+          {"selector": "level", "text": "Level", "type": "string"},
+          {"selector": "count", "text": "Count", "type": "number"}
+        ],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Zones (with Mob Levels)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {},
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/world/zones",
+        "method": "GET",
+        "root": "",
+        "columns": [
+          {"selector": "name", "text": "Zone", "type": "string"},
+          {"selector": "min_level", "text": "Min Lvl", "type": "number"},
+          {"selector": "max_level", "text": "Max Lvl", "type": "number"},
+          {"selector": "mob_count", "text": "Mob Types", "type": "number"},
+          {"selector": "room_count", "text": "Rooms", "type": "number"}
+        ],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "table",
+      "title": "Shops",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {},
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/world/shops",
+        "method": "GET",
+        "root": "",
+        "columns": [
+          {"selector": "shopkeeper_name", "text": "Shopkeeper", "type": "string"},
+          {"selector": "room_name", "text": "Location", "type": "string"},
+          {"selector": "sell_rate", "text": "Sell", "type": "number", "display": [{"value": null, "text": "", "suffix": "x"}]},
+          {"selector": "buy_rate", "text": "Buy", "type": "number", "display": [{"value": null, "text": "", "suffix": "x"}]},
+          {"selector": "buy_types", "text": "Buys", "type": "string"}
+        ],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": []
+        }
+      }
     }
   ]
 }

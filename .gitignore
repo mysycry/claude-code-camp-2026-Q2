@@ -14,3 +14,8 @@ __pycache__/
 
 CODE_ANALYSIS.md
 PORTFOLIO.md
+
+# SQLite databases (runtime data, reproducible)
+*.db
+*.db-shm
+*.db-wal

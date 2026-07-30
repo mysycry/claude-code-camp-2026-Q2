@@ -69,6 +69,23 @@ def parse_room_description(text):
     }
 
 
+def parse_exits_output(text):
+    """Parse output from MUD 'exits' command (direction -> destination name pairs)."""
+    text = _strip_ansi(text)
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    exits = []
+    for line in lines:
+        if ' - ' not in line:
+            continue
+        parts = line.split(' - ', 1)
+        direction = parts[0].strip().lower()
+        direction = _DIR_MAP.get(direction, direction)
+        dest = parts[1].strip() if len(parts) > 1 else None
+        if direction in ('north', 'south', 'east', 'west', 'up', 'down') and dest:
+            exits.append({'direction': direction, 'dest': dest})
+    return exits if exits else None
+
+
 def make_memory_hook():
     def after_tool(ctx, name, args, result, err):
         if err or not result:
@@ -80,7 +97,7 @@ def make_memory_hook():
             parsed = parse_room_description(result)
             if parsed and parsed['room_name']:
                 rid = _room_id(parsed['room_name'])
-                store.record_room(rid, parsed['room_name'])
+                store.record_room(rid, parsed['room_name'], current=True)
                 for ex in parsed['exits']:
                     dest_rid = _room_id(ex['dest']) if ex['dest'] else None
                     store.record_exit(rid, ex['direction'], dest_rid)
@@ -92,7 +109,7 @@ def make_memory_hook():
                 prev = store.current_room()
                 if prev == rid:
                     return
-                store.record_room(rid, parsed['room_name'])
+                store.record_room(rid, parsed['room_name'], current=True)
                 direction = args.get('direction', '?')
                 if prev and direction != '?':
                     store.record_exit(prev, direction, rid)
@@ -101,4 +118,14 @@ def make_memory_hook():
                     dest_rid = _room_id(ex['dest']) if ex['dest'] else None
                     store.record_exit(rid, ex['direction'], dest_rid)
                 ctx.inject_here_block()
+        elif name == 'check' and args.get('kind') == 'exits':
+            parsed = parse_exits_output(result)
+            if parsed:
+                current = store.current_room()
+                if current:
+                    for ex in parsed:
+                        dest_rid = _room_id(ex['dest'])
+                        store.record_room(dest_rid, ex['dest'])
+                        store.record_exit(current, ex['direction'], dest_rid)
+                    ctx.inject_here_block()
     return after_tool

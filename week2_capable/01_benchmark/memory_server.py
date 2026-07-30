@@ -42,6 +42,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(text.encode())
 
+    def _parse_qs(self):
+        return urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
@@ -60,6 +63,20 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_token_usage()
         elif path == "/token-usage/raw":
             self._handle_token_usage_raw()
+        elif path == "/world/rooms":
+            self._handle_world_rooms()
+        elif path == "/world/exits":
+            self._handle_world_exits()
+        elif path == "/world/zones":
+            self._handle_world_zones()
+        elif path == "/world/mobs":
+            self._handle_world_mobs()
+        elif path == "/world/shops":
+            self._handle_world_shops()
+        elif path == "/world/counts":
+            self._handle_world_counts()
+        elif path == "/world/summary":
+            self._handle_world_summary()
         elif path == "" or path == "/":
             self._handle_index()
         else:
@@ -102,6 +119,10 @@ class Handler(BaseHTTPRequestHandler):
                 "SELECT name FROM rooms WHERE room_id=?", (current_room_id[0],)
             ).fetchone()
             current_name = row[0] if row else None
+        world_counts = {}
+        for table in ("world_rooms", "world_exits", "world_mobs", "world_objects", "world_zones", "world_shops"):
+            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+            world_counts[table] = row[0] if row else 0
         self._json({
             "rooms_explored": room_count,
             "total_exits": exit_count,
@@ -109,6 +130,7 @@ class Handler(BaseHTTPRequestHandler):
             "walked_exits": walked,
             "current_room": current_room_id[0] if current_room_id else None,
             "current_room_name": current_name,
+            **world_counts,
         })
 
     def _handle_token_usage(self):
@@ -146,14 +168,121 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_api_list(self):
         self._json({
             "endpoints": {
-                "/rooms": "All known rooms",
-                "/exits": "All known exits",
+                "/rooms": "All known (explored) rooms",
+                "/exits": "All known (explored) exits",
                 "/stats": "Summary statistics",
                 "/frontier": "Unexplored exits",
                 "/token-usage": "Token usage aggregated by model",
                 "/token-usage/raw": "Raw token usage events (?limit=N)",
+                "/world/rooms": "All world map rooms (?zone=N)",
+                "/world/exits": "All world map exits (?room=N)",
+                "/world/zones": "All zones with mob level ranges",
+                "/world/mobs": "All mobs (?min_level=N&max_level=N)",
+                "/world/shops": "All shops",
+                "/world/counts": "World data counts only",
+                "/world/summary": "World data counts + level distribution",
             }
         })
+
+    def _handle_world_rooms(self):
+        conn = _get_conn()
+        params = self._parse_qs()
+        zone = params.get("zone", [None])[0]
+        if zone:
+            rows = conn.execute(
+                "SELECT vnum, name, zone_number, sector_type FROM world_rooms WHERE zone_number=? ORDER BY vnum",
+                (int(zone),),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT vnum, name, zone_number, sector_type FROM world_rooms ORDER BY vnum"
+            ).fetchall()
+        self._json([dict(r) for r in rows])
+
+    def _handle_world_exits(self):
+        conn = _get_conn()
+        params = self._parse_qs()
+        room = params.get("room", [None])[0]
+        if room:
+            rows = conn.execute(
+                "SELECT we.from_room, we.dir_name, we.room_linked, we.door_flag, "
+                "COALESCE(wr.name, '?') AS to_name "
+                "FROM world_exits we "
+                "LEFT JOIN world_rooms wr ON we.room_linked = wr.vnum "
+                "WHERE we.from_room=? ORDER BY we.direction",
+                (int(room),),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT we.from_room, we.dir_name, we.room_linked, we.door_flag, "
+                "COALESCE(wr.name, '?') AS to_name "
+                "FROM world_exits we "
+                "LEFT JOIN world_rooms wr ON we.room_linked = wr.vnum "
+                "LIMIT 500"
+            ).fetchall()
+        self._json([dict(r) for r in rows])
+
+    def _handle_world_zones(self):
+        conn = _get_conn()
+        rows = conn.execute("""
+            SELECT z.vnum, z.name, z.bottom_room, z.top_room,
+                   COALESCE(MIN(wm.level), 0) as min_level,
+                   COALESCE(MAX(wm.level), 0) as max_level,
+                   COUNT(DISTINCT zms.mob_vnum) as mob_count,
+                   (SELECT COUNT(*) FROM world_rooms wr2 WHERE wr2.zone_number = z.vnum) as room_count
+            FROM world_zones z
+            LEFT JOIN zone_mob_spawns zms ON zms.zone_vnum = z.vnum
+            LEFT JOIN world_mobs wm ON wm.vnum = zms.mob_vnum
+            GROUP BY z.vnum ORDER BY z.vnum
+        """).fetchall()
+        self._json([dict(r) for r in rows])
+
+    def _handle_world_mobs(self):
+        conn = _get_conn()
+        params = self._parse_qs()
+        min_lvl = int(params.get("min_level", [1])[0])
+        max_lvl = int(params.get("max_level", [99])[0])
+        rows = conn.execute(
+            "SELECT vnum, short_desc, level, gold, xp, alignment, aggro, "
+            "hp_dice, damage_dice, flags "
+            "FROM world_mobs WHERE level >= ? AND level <= ? ORDER BY level, vnum",
+            (min_lvl, max_lvl),
+        ).fetchall()
+        self._json([dict(r) for r in rows])
+
+    def _handle_world_shops(self):
+        conn = _get_conn()
+        rows = conn.execute(
+            "SELECT ws.vnum, ws.shopkeeper_mob, ws.objects, ws.sell_rate, ws.buy_rate, "
+            "ws.buy_types, ws.rooms, ws.trades_with, "
+            "COALESCE(wm.short_desc, '?') AS shopkeeper_name, "
+            "COALESCE(wr.name, '?') AS room_name "
+            "FROM world_shops ws "
+            "LEFT JOIN world_mobs wm ON wm.vnum = ws.shopkeeper_mob "
+            "LEFT JOIN world_rooms wr ON wr.vnum = CAST(ws.rooms AS INTEGER) "
+            "ORDER BY ws.vnum"
+        ).fetchall()
+        self._json([dict(r) for r in rows])
+
+    def _handle_world_counts(self):
+        conn = _get_conn()
+        result = {}
+        for table in ("world_rooms", "world_exits", "world_mobs", "world_objects", "world_zones", "world_shops"):
+            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+            result[table] = row[0] if row else 0
+        self._json(result)
+
+    def _handle_world_summary(self):
+        conn = _get_conn()
+        result = {}
+        for table in ("world_rooms", "world_exits", "world_mobs", "world_objects", "world_zones", "world_shops"):
+            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+            result[table] = row[0] if row else 0
+        lvl_dist = conn.execute(
+            "SELECT level, COUNT(*) as count FROM world_mobs GROUP BY level ORDER BY level"
+        ).fetchall()
+        result["level_distribution"] = [dict(r) for r in lvl_dist]
+        self._json(result)
 
     def _handle_index(self):
         html = """<!DOCTYPE html>
