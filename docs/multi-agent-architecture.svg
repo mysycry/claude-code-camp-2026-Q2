@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="980" viewBox="0 0 1200 980" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/>
+    </marker>
+    <marker id="arrowB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f4c81"/>
+    </marker>
+    <marker id="arrowP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6e2fa4"/>
+    </marker>
+    <marker id="arrowG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e8872a"/>
+    </marker>
+    <linearGradient id="mgr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16324f"/><stop offset="1" stop-color="#0f4c81"/>
+    </linearGradient>
+    <linearGradient id="game" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6f9fc"/><stop offset="1" stop-color="#e8f0f7"/>
+    </linearGradient>
+    <linearGradient id="obs" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fdf6f0"/><stop offset="1" stop-color="#fbead7"/>
+    </linearGradient>
+    <linearGradient id="infra" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f2f9"/><stop offset="1" stop-color="#e9e4f4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="980" fill="#ffffff"/>
+  <rect x="0" y="0" width="1200" height="56" fill="#16324f"/>
+  <text x="600" y="36" text-anchor="middle" fill="#ffffff" font-size="22" font-weight="bold">Boukensha Squad — Multi-Agent Architecture (tbaMUD)</text>
+
+  <!-- Manager -->
+  <rect x="405" y="78" width="390" height="66" rx="10" fill="url(#mgr)"/>
+  <text x="600" y="104" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="bold">Squad Manager (agents/squad.py)</text>
+  <text x="600" y="124" text-anchor="middle" fill="#cfe0f0" font-size="12">boukensha.run() · system.md prompt · env config · max_iterations / max_turn_tokens</text>
+
+  <!-- Tool registry strip -->
+  <rect x="300" y="168" width="600" height="40" rx="8" fill="#ffffff" stroke="#0f4c81" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="600" y="185" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">Sub-agents registered as tools in the Registry (register_subagents → registry.tool)</text>
+  <text x="600" y="200" text-anchor="middle" fill="#555" font-size="11">each call becomes a `tool/&lt;name&gt;` span inheriting the task's trace_id</text>
+
+  <!-- Arrow manager -> registry -->
+  <line x1="600" y1="144" x2="600" y2="166" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrowB)"/>
+
+  <!-- Group label: game agents -->
+  <text x="180" y="236" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">GAME</text>
+  <line x1="60" y1="242" x2="300" y2="242" stroke="#0f4c81" stroke-width="1.5"/>
+
+  <!-- Game agents -->
+  <!-- connection -->
+  <rect x="70" y="252" width="200" height="86" rx="8" fill="url(#game)" stroke="#0f4c81" stroke-width="1.5"/>
+  <text x="170" y="274" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">connection_agent</text>
+  <text x="170" y="292" text-anchor="middle" fill="#444" font-size="10">daemon up? · MUD reachable?</text>
+  <text x="170" y="306" text-anchor="middle" fill="#444" font-size="10">player can log in</text>
+  <text x="170" y="322" text-anchor="middle" fill="#888" font-size="9">agents/connection_agent.py</text>
+
+  <!-- reset -->
+  <rect x="290" y="252" width="200" height="86" rx="8" fill="url(#game)" stroke="#0f4c81" stroke-width="1.5"/>
+  <text x="390" y="274" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">reset_agent</text>
+  <text x="390" y="292" text-anchor="middle" fill="#444" font-size="10">admin goto/transfer</text>
+  <text x="390" y="306" text-anchor="middle" fill="#444" font-size="10">verifies room name · retries</text>
+  <text x="390" y="322" text-anchor="middle" fill="#888" font-size="9">agents/reset_agent.py</text>
+
+  <!-- map -->
+  <rect x="510" y="252" width="200" height="86" rx="8" fill="url(#game)" stroke="#0f4c81" stroke-width="1.5"/>
+  <text x="610" y="274" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">map_agent</text>
+  <text x="610" y="292" text-anchor="middle" fill="#444" font-size="10">bounded DFS exploration</text>
+  <text x="610" y="306" text-anchor="middle" fill="#444" font-size="10">room graph → hunting spots</text>
+  <text x="610" y="322" text-anchor="middle" fill="#888" font-size="9">agents/map_agent.py</text>
+
+  <!-- grind -->
+  <rect x="730" y="252" width="200" height="86" rx="8" fill="url(#game)" stroke="#0f4c81" stroke-width="1.5"/>
+  <text x="830" y="274" text-anchor="middle" fill="#0f4c81" font-size="13" font-weight="bold">grind_agent</text>
+  <text x="830" y="292" text-anchor="middle" fill="#444" font-size="10">DB-planned hunt route</text>
+  <text x="830" y="306" text-anchor="middle" fill="#444" font-size="10">kill → loot → recover</text>
+  <text x="830" y="322" text-anchor="middle" fill="#888" font-size="9">agents/grind_agent.py</text>
+
+  <!-- registry arrows to game agents -->
+  <path d="M 380 208 C 250 222 210 230 190 250" fill="none" stroke="#0f4c81" stroke-width="1.5" marker-end="url(#arrowB)"/>
+  <path d="M 440 208 C 430 220 415 230 405 250" fill="none" stroke="#0f4c81" stroke-width="1.5" marker-end="url(#arrowB)"/>
+  <path d="M 560 208 C 570 220 585 230 595 250" fill="none" stroke="#0f4c81" stroke-width="1.5" marker-end="url(#arrowB)"/>
+  <path d="M 700 208 C 740 222 780 230 815 250" fill="none" stroke="#0f4c81" stroke-width="1.5" marker-end="url(#arrowB)"/>
+
+  <!-- Group label: observability agents -->
+  <text x="180" y="366" text-anchor="middle" fill="#e8872a" font-size="13" font-weight="bold">OBSERVABILITY</text>
+  <line x1="60" y1="372" x2="300" y2="372" stroke="#e8872a" stroke-width="1.5"/>
+
+  <!-- observability agents -->
+  <!-- observability -->
+  <rect x="70" y="382" width="230" height="86" rx="8" fill="url(#obs)" stroke="#e8872a" stroke-width="1.5"/>
+  <text x="185" y="404" text-anchor="middle" fill="#b3580e" font-size="13" font-weight="bold">observability_agent</text>
+  <text x="185" y="422" text-anchor="middle" fill="#444" font-size="10">Jaeger OTLP · Jaeger UI/API</text>
+  <text x="185" y="436" text-anchor="middle" fill="#444" font-size="10">Grafana UI/API · compose up</text>
+  <text x="185" y="452" text-anchor="middle" fill="#888" font-size="9">agents/observability_agent.py</text>
+
+  <!-- trace -->
+  <rect x="320" y="382" width="230" height="86" rx="8" fill="url(#obs)" stroke="#e8872a" stroke-width="1.5"/>
+  <text x="435" y="404" text-anchor="middle" fill="#b3580e" font-size="13" font-weight="bold">trace_agent</text>
+  <text x="435" y="422" text-anchor="middle" fill="#444" font-size="10">synthetic OTLP span</text>
+  <text x="435" y="436" text-anchor="middle" fill="#444" font-size="10">verify Jaeger stored it</text>
+  <text x="435" y="452" text-anchor="middle" fill="#888" font-size="9">agents/trace_agent.py</text>
+
+  <!-- grafana -->
+  <rect x="570" y="382" width="230" height="86" rx="8" fill="url(#obs)" stroke="#e8872a" stroke-width="1.5"/>
+  <text x="685" y="404" text-anchor="middle" fill="#b3580e" font-size="13" font-weight="bold">grafana_agent</text>
+  <text x="685" y="422" text-anchor="middle" fill="#444" font-size="10">datasource provisioned?</text>
+  <text x="685" y="436" text-anchor="middle" fill="#444" font-size="10">dashboard JSON exists</text>
+  <text x="685" y="452" text-anchor="middle" fill="#888" font-size="9">agents/grafana_agent.py</text>
+
+  <!-- registry arrows to observability agents -->
+  <path d="M 370 208 C 300 260 230 330 195 380" fill="none" stroke="#e8872a" stroke-width="1.5" marker-end="url(#arrowG)"/>
+  <path d="M 520 208 C 500 260 470 330 445 380" fill="none" stroke="#e8872a" stroke-width="1.5" marker-end="url(#arrowG)"/>
+  <path d="M 660 208 C 670 260 680 330 690 380" fill="none" stroke="#e8872a" stroke-width="1.5" marker-end="url(#arrowG)"/>
+
+  <!-- Infrastructure group label -->
+  <text x="180" y="510" text-anchor="middle" fill="#6e2fa4" font-size="13" font-weight="bold">INFRASTRUCTURE</text>
+  <line x1="60" y1="516" x2="300" y2="516" stroke="#6e2fa4" stroke-width="1.5"/>
+
+  <!-- MUD daemon + server -->
+  <rect x="70" y="526" width="330" height="150" rx="8" fill="url(#infra)" stroke="#6e2fa4" stroke-width="1.5"/>
+  <text x="235" y="548" text-anchor="middle" fill="#6e2fa4" font-size="13" font-weight="bold">MUD Daemon (Ruby TCP proxy) → tbaMUD :4000</text>
+  <text x="235" y="568" text-anchor="middle" fill="#444" font-size="10">mud_manager · 70+ structured command primitives</text>
+  <text x="235" y="588" text-anchor="middle" fill="#444" font-size="10">telnet/MUD protocol · IAC stripping · login state machine</text>
+  <text x="235" y="608" text-anchor="middle" fill="#444" font-size="10">admin char for reset (goto/transfer/look)</text>
+  <text x="235" y="628" text-anchor="middle" fill="#444" font-size="10">Docker container · persistent world data</text>
+  <text x="235" y="650" text-anchor="middle" fill="#888" font-size="9">resets/player_reset.py · agents/client.py</text>
+
+  <!-- Memory server + bulletin -->
+  <rect x="440" y="526" width="330" height="150" rx="8" fill="url(#infra)" stroke="#6e2fa4" stroke-width="1.5"/>
+  <text x="605" y="548" text-anchor="middle" fill="#6e2fa4" font-size="13" font-weight="bold">Memory HTTP Server :9876 + SQLite</text>
+  <text x="605" y="568" text-anchor="middle" fill="#444" font-size="10">memory_bench.db · world tables (1,878 rooms)</text>
+  <text x="605" y="588" text-anchor="middle" fill="#444" font-size="10">bulletin board: player_state + player_events</text>
+  <text x="605" y="608" text-anchor="middle" fill="#444" font-size="10">/player-state · /player-events · /stats</text>
+  <text x="605" y="628" text-anchor="middle" fill="#444" font-size="10">agents/bulletin.py · agents/worldnav.py (BFS)</text>
+  <text x="605" y="650" text-anchor="middle" fill="#888" font-size="9">memory/memory_server.py</text>
+
+  <!-- Observability stack -->
+  <rect x="810" y="526" width="320" height="150" rx="8" fill="url(#infra)" stroke="#6e2fa4" stroke-width="1.5"/>
+  <text x="970" y="548" text-anchor="middle" fill="#6e2fa4" font-size="13" font-weight="bold">Observability Stack (Docker)</text>
+  <text x="970" y="570" text-anchor="middle" fill="#6e2fa4" font-size="12" font-weight="bold">OpenTelemetry OTLP :4318</text>
+  <text x="970" y="590" text-anchor="middle" fill="#6e2fa4" font-size="12" font-weight="bold">Jaeger UI :16686</text>
+  <text x="970" y="610" text-anchor="middle" fill="#6e2fa4" font-size="12" font-weight="bold">Grafana :3000 (Infinity DS)</text>
+  <text x="970" y="634" text-anchor="middle" fill="#444" font-size="10">Boukensha Bulletin Board dashboard</text>
+  <text x="970" y="650" text-anchor="middle" fill="#444" font-size="10">traces · memory · token usage</text>
+  <text x="970" y="668" text-anchor="middle" fill="#888" font-size="9">docker-compose.yml · grafana/</text>
+
+  <!-- Agent -> infrastructure arrows -->
+  <path d="M 170 340 C 170 400 200 470 225 524" fill="none" stroke="#0f4c81" stroke-width="1.5" marker-end="url(#arrowB)"/>
+  <path d="M 605 470 C 605 485 605 500 605 524" fill="none" stroke="#6e2fa4" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 435 470 C 620 490 820 500 955 524" fill="none" stroke="#6e2fa4" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 185 470 C 300 495 430 505 590 524" fill="none" stroke="#6e2fa4" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Bottom: framework foundation -->
+  <rect x="60" y="720" width="1080" height="56" rx="8" fill="#16324f"/>
+  <text x="600" y="742" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">Boukensha Agent Framework (week1_baseline/python/12_context)</text>
+  <text x="600" y="760" text-anchor="middle" fill="#cfe0f0" font-size="11">registry tool system · typed parameter schemas · token-aware context + auto-compaction · OTel tracer · JSON-L logging · REPL</text>
+
+  <!-- data flow legend -->
+  <rect x="60" y="800" width="1080" height="150" rx="8" fill="#fafafa" stroke="#ddd"/>
+  <text x="80" y="822" fill="#333" font-size="12" font-weight="bold">Data flow</text>
+  <line x1="80" y1="842" x2="230" y2="842" stroke="#0f4c81" stroke-width="2" marker-end="url(#arrowB)"/>
+  <text x="240" y="846" fill="#444" font-size="11">Squad manager delegates to sub-agents via registry tool calls</text>
+  <line x1="80" y1="868" x2="230" y2="868" stroke="#6e2fa4" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="240" y="872" fill="#444" font-size="11">Sub-agents act on MUD through the daemon; write snapshots to the bulletin board (SQLite)</text>
+  <line x1="80" y1="894" x2="230" y2="894" stroke="#6e2fa4" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="240" y="898" fill="#444" font-size="11">Memory server serves player state + world data to Grafana (Infinity datasource)</text>
+  <line x1="80" y1="920" x2="230" y2="920" stroke="#e8872a" stroke-width="2" marker-end="url(#arrowG)"/>
+  <text x="240" y="924" fill="#444" font-size="11">Every agent call emits OTel spans → Jaeger; observability agents verify the whole stack</text>
+</svg>

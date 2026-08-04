@@ -1,0 +1,74 @@
+flowchart TB
+    subgraph MGR["Squad Manager"]
+        M["Squad Manager<br/><i>agents/squad.py</i><br/>boukensha.run() · system.md · max_iterations / max_turn_tokens"]
+    end
+
+    subgraph REG["Tool Registry"]
+        R["Sub-agents registered as tools<br/>register_subagents → registry.tool<br/>each call = `tool/<name>` span with task trace_id"]
+    end
+
+    subgraph GAME["GAME"]
+        direction LR
+        CA["connection_agent<br/><i>agents/connection_agent.py</i><br/>daemon up? · MUD reachable? · login ok"]
+        RA["reset_agent<br/><i>agents/reset_agent.py</i><br/>admin goto/transfer · verifies room name · retries"]
+        MA["map_agent<br/><i>agents/map_agent.py</i><br/>bounded DFS · room graph · hunting spots"]
+        GA["grind_agent<br/><i>agents/grind_agent.py</i><br/>DB-planned hunt route · kill → loot → recover"]
+    end
+
+    subgraph OBS["OBSERVABILITY"]
+        direction LR
+        OA["observability_agent<br/><i>agents/observability_agent.py</i><br/>Jaeger OTLP · Jaeger/Grafana API · compose up"]
+        TA["trace_agent<br/><i>agents/trace_agent.py</i><br/>synthetic OTLP span · verify Jaeger stored it"]
+        GRA["grafana_agent<br/><i>agents/grafana_agent.py</i><br/>datasource provisioned · dashboard JSON"]
+    end
+
+    subgraph INFRA["INFRASTRUCTURE"]
+        direction LR
+        MUD["MUD Daemon (Ruby TCP proxy) → tbaMUD :4000<br/>mud_manager · 70+ primitives · telnet/MUD protocol<br/>admin char for reset · Docker container<br/><i>resets/player_reset.py · agents/client.py</i>"]
+        MEM["Memory HTTP Server :9876 + SQLite<br/>memory_bench.db · world tables (1,878 rooms)<br/>bulletin board: player_state + player_events<br/>/player-state · /player-events · /stats<br/><i>memory/memory_server.py · agents/bulletin.py · agents/worldnav.py</i>"]
+        STACK["Observability Stack (Docker)<br/>OpenTelemetry OTLP :4318 → Jaeger :16686<br/>Grafana :3000 (Infinity DS)<br/>Boukensha Bulletin Board dashboard<br/>traces · memory · token usage<br/><i>docker-compose.yml · grafana/</i>"]
+    end
+
+    SUB["Boukensha Agent Framework (week1_baseline/python/12_context)<br/>registry tool system · typed parameter schemas · token-aware context + auto-compaction · OTel tracer · JSON-L logging · REPL"]
+
+    M --> R
+    R --> CA
+    R --> RA
+    R --> MA
+    R --> GA
+    R --> OA
+    R --> TA
+    R --> GRA
+
+    CA --> MUD
+    RA --> MUD
+    MA --> MUD
+    GA --> MUD
+
+    CA --> MEM
+    RA --> MEM
+    MA --> MEM
+    GA --> MEM
+
+    OA --> STACK
+    TA --> STACK
+    GRA --> STACK
+
+    MEM -. "served to Grafana via Infinity datasource" .-> STACK
+    MUD -. "OTel spans (OTLP :4318)" .-> STACK
+
+    SUB -. "provides registry + tracing to" .-> REG
+
+    classDef manager fill:#16324f,stroke:#0f4c81,color:#fff,font-weight:bold
+    classDef registry fill:#fff,stroke:#0f4c81,color:#0f4c81
+    classDef game fill:#e8f0f7,stroke:#0f4c81,color:#0f4c81
+    classDef obs fill:#fbead7,stroke:#e8872a,color:#b3580e
+    classDef infra fill:#e9e4f4,stroke:#6e2fa4,color:#6e2fa4
+    classDef base fill:#16324f,stroke:#16324f,color:#fff
+
+    class M manager
+    class R registry
+    class CA,RA,MA,GA game
+    class OA,TA,GRA obs
+    class MUD,MEM,STACK infra
+    class SUB base

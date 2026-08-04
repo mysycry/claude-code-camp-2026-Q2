@@ -26,6 +26,8 @@ Boukensha agent framework from `week1_baseline/python/12_context`.
 ```
 
 - **`agents/`** — the squad manager (`squad.py`, `base.py`) and sub-agents:
+  - `mission_control.py` — Mission Control REST client (register/heartbeat, retries)
+  - `daemon_manager.py` — auto-starts the MUD Ruby daemon if it's down (ping → spawn → re-ping)
   - `connection_agent.py` — MUD reachability checks
   - `reset_agent.py` — moves the player to a verified start room via an admin char
   - `map_agent.py` — bounded DFS exploration + hunting-spot reports
@@ -47,16 +49,25 @@ Boukensha agent framework from `week1_baseline/python/12_context`.
 # 1. deps
 pip install -r requirements.txt
 
-# 2. infrastructure (MUD + observability)
-docker compose -f docker-compose.yml up -d        # jaeger + grafana
+# 2. infrastructure (MUD + observability + Mission Control)
+docker compose -f docker-compose.yml up -d        # jaeger + grafana + mission-control (:3001)
 ruby ../week1_baseline/ruby/10_standard_tool_library/bin/mud_daemon &   # MUD daemon
 python memory/memory_server.py &                  # memory HTTP server
 
-# 3. run the squad
+# 3. configure Mission Control
+cp .env.example .env                              # then set MC_API_KEY (Settings > API Key)
+# MC_ENABLED=true MC_URL=http://localhost:3001 MC_API_KEY=<key>
+
+# 4. run the squad (auto-starts the MUD daemon if it's down)
 python agents/squad.py "Go check the MUD, fight something, and report."
 # or via launcher:
 bash bin/run_squad "Go check the MUD, fight something, and report."
 ```
+
+The MUD Ruby daemon is auto-started by `daemon_manager.ensure_daemon()` on every
+squad run: if the port file is missing or unresponsive it spawns
+`week1_baseline/ruby/10_standard_tool_library/bin/mud_daemon`, waits for it to
+write a port, and re-pings — so a down daemon is recovered, not an error.
 
 ## Ports
 
@@ -68,18 +79,43 @@ bash bin/run_squad "Go check the MUD, fight something, and report."
 | Jaeger UI      | `localhost:16686`             |
 | OTLP (traces)  | `localhost:4318` (HTTP) / `4317` (gRPC) |
 | Grafana        | `localhost:3000`              |
+| Mission Control| `localhost:3001`              |
 | Log viewer     | `localhost:4567`              |
 
 ## Configuration
 
-- **`agents/squad.yaml`** — squad model/provider/limits, MUD, Jaeger, Grafana.
+- **`agents/squad.yaml`** — squad model/provider/limits, MUD, Jaeger, Grafana,
+  and the `mission_control:` block (`enabled`, `url`, `api_key`,
+  `heartbeat_interval`).
 - **`.boukensha/settings.yaml`** — MUD credentials + `reset:` block (admin creds,
   `start_room`, verified `start_room_name`, `max_attempts`).
+- **`agents/base.py` `load_env()`** — reads `week3_multi-agents/.env` at import
+  (existing env wins; idempotent) so shell exports beat the file.
 - **Environment overrides** (see `.env.example`):
   - `MUD_HOST` / `MUD_PORT` / `MUD_USERNAME` / `MUD_PASSWORD`
   - `SQUAD_TASK` / `SQUAD_MODEL` / `SQUAD_PROVIDER` / `SQUAD_MAX_ITERATIONS` /
     `SQUAD_MAX_TURN_TOKENS` / `SQUAD_MEMORY_PATH` / `SQUAD_TRACE_DIR`
   - `RESET_START_ROOM` / `RESET_START_ROOM_NAME` / `RESET_MAX_ATTEMPTS`
+  - `MC_ENABLED` / `MC_URL` / `MC_API_KEY` / `MC_HEARTBEAT_INTERVAL` /
+    `BOUKENSHA_VERSION`
+
+## Mission Control
+
+All 8 agents (manager + 7 sub-agents) self-register on squad startup and
+heartbeat in the background (`mission_control.py`):
+
+- **Eager registration.** Every sub-agent registers the moment it's added to
+  the tool registry (`base.register_subagents`), so the board shows the full
+  squad immediately — not only the agents the manager happens to call.
+- **GET-first, rate-limit friendly.** Mission Control limits agent registration
+  to 5/min per IP, so `register()` first fetches `/api/agents` and only POSTs
+  names that don't already exist. Requests carry an `x-agent-name` header and
+  `Retry-After`-aware backoff on 429/5xx.
+- **Status mapping.** Each agent reports `busy` while running, `idle` when done,
+  and `error` on exception; the manager (`squad_manager`) registers in `squad.py`
+  and its own heartbeat includes the task and git-version.
+- **Best-effort.** Any MC failure is logged and swallowed — Mission Control is a
+  dashboard, never a dependency (`MC_ENABLED=false` disables it entirely).
 
 ## Tests
 
@@ -94,9 +130,9 @@ python tests/run_tests.py                   # same, with exit code
   live server's room vnums can differ from the offline world files, so the reset
   verifies the room *name* after transfer and retries. Configure
   `reset.start_room_name` to match your server.
-- **Windows Ruby.** Fresh Ruby processes may fail to load `enc/encdb.so` if a
-  Windows Application Control policy blocks it; launch the daemon/MCP server
-  through the environment that already has a working Ruby process (e.g. the
-  opencode MCP config) or repair the Ruby install.
+- **Mission Control rate limits.** Agent registration is limited to 5/min per
+  IP; the client GETs the existing agent list first so repeat runs don't burn
+  the budget. A very large one-shot spawn of brand-new agents may still need the
+  `Retry-After` backoff to settle.
 - Grinding assumes the character can fight the targeted mobs; use `consider` /
   level-aware mob filtering before committing to a hunt.

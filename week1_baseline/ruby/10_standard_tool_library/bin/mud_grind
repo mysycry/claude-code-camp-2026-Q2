@@ -36,7 +36,8 @@ while kills < needed
   if mobs.any?
     stuck = 0
     name = mobs.first.sub(/\s+is\s+(standing|sitting|resting|lying|here).*/i, "").strip
-    target = name.split(/\s+/).first(2).join(" ")
+    keywords = name.split(/\s+/)
+    target = keywords.length > 2 ? keywords.last(2).join(" ") : keywords.last(1).join(" ")
 
     puts "[#{kills + 1}/#{needed}] Attacking #{target}..."
 
