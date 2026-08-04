@@ -9,7 +9,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
 sys.path.insert(0, os.path.dirname(__file__))
 
 DATA_DIR = os.path.join(PARSER_DIR, "assets")
-DB_PATH = os.path.join(os.path.dirname(__file__), "memory_bench.db")
+DB_PATH = os.path.join(
+    os.path.dirname(__file__), os.pardir, os.pardir,
+    "week3_multi-agents", "memory", "memory_bench.db",
+)
 
 from boukensha.memory import MemoryStore
 from circlemud_world_parser.utils import parse_from_file

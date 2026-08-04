@@ -4,6 +4,7 @@ import sys
 
 root = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 sys.path.insert(0, os.path.join(root, "week1_baseline", "python", "12_context"))
+sys.path.insert(0, os.path.join(root, "week3_multi-agents", "memory"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from memory_hook import make_memory_hook

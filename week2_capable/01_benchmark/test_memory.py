@@ -5,7 +5,8 @@ import sys
 
 root = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 sys.path.insert(0, os.path.join(root, "week1_baseline", "python", "12_context"))
-sys.path.insert(0, os.path.join(root, "week2_capable", "02_automatic_resets"))
+sys.path.insert(0, os.path.join(root, "week3_multi-agents", "resets"))
+sys.path.insert(0, os.path.join(root, "week3_multi-agents", "memory"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from boukensha.tools.mud_client import MudDaemonClient, PORT_FILE
@@ -13,7 +14,10 @@ from boukensha.memory import MemoryStore
 from memory_hook import make_memory_hook, parse_room_description
 from player_reset import reset_player_to_start
 
-MEMORY_DB = os.path.join(os.path.dirname(__file__), "memory_bench.db")
+MEMORY_DB = os.path.join(
+    os.path.dirname(__file__), os.pardir, os.pardir,
+    "week3_multi-agents", "memory", "memory_bench.db",
+)
 
 store = MemoryStore(path=MEMORY_DB)
 # Clear stale data via direct SQLite (works even if server holds WAL lock)

@@ -15,3 +15,7 @@ reset:
     username: dummy
     password: helloworld
   start_room: "3001"
+  # Expected room NAME for start_room. The reset verifies the player actually
+  # lands here and retries on mismatch (live vnums can differ from the offline DB).
+  start_room_name: "The Temple Of Midgaard"
+  max_attempts: 3

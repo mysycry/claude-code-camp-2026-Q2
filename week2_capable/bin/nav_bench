@@ -67,7 +67,8 @@ import importlib.util
 
 root = os.path.dirname(os.getcwd())
 sys.path.insert(0, os.path.join(root, 'week1_baseline', 'python', '12_context'))
-sys.path.insert(0, os.path.join(root, 'week2_capable', '02_automatic_resets'))
+sys.path.insert(0, os.path.join(root, 'week3_multi-agents', 'resets'))
+sys.path.insert(0, os.path.join(root, 'week3_multi-agents', 'memory'))
 
 from player_reset import admin_connected
 

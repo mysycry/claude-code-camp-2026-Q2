@@ -20,6 +20,7 @@ def _add_paths():
     root = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
     for p in (
         os.path.join(root, "week1_baseline", "python", "12_context"),
+        os.path.join(root, "week3_multi-agents", "memory"),
         os.path.dirname(__file__),
     ):
         if p not in sys.path:
@@ -47,11 +48,14 @@ def run_benchmark(task="Navigate from the Temple of Midgaard to the Bakery",
     if trace_dir is None:
         trace_dir = os.path.join(os.path.dirname(__file__), "traces")
     if memory_path is None:
-        memory_path = os.path.join(os.path.dirname(__file__), "memory_bench.db")
+        memory_path = os.path.join(
+            os.path.dirname(__file__), os.pardir, os.pardir,
+            "week3_multi-agents", "memory", "memory_bench.db",
+        )
 
     if not skip_reset:
         root = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
-        sys.path.insert(0, os.path.join(root, "week2_capable", "02_automatic_resets"))
+        sys.path.insert(0, os.path.join(root, "week3_multi-agents", "resets"))
         from player_reset import reset_player_to_start
         if not quiet:
             print(f"  resetting player to start room {start_room}...", file=sys.stderr)

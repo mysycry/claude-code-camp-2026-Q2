@@ -2,6 +2,7 @@
 import os, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "week1_baseline", "python", "12_context"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "week3_multi-agents", "memory"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from boukensha.memory import MemoryStore
