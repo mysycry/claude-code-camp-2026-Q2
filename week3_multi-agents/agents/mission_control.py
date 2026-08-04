@@ -97,6 +97,7 @@ class MissionControlClient:
     RETRYABLE_HTTP = {429, 500, 502, 503, 504}
     MAX_RETRIES = 3
     BACKOFF = 0.5
+    AGENT_CACHE_TTL = 5.0
 
     def __init__(self, url=None, api_key=None, enabled=None, timeout=5):
         s = _settings()
@@ -107,6 +108,54 @@ class MissionControlClient:
         self.timeout = timeout
         self._agent_id = None
         self._agent_name = None
+        self._agent_cache = None
+        self._agent_cache_at = 0.0
+
+    def _headers(self):
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self._agent_name:
+            headers["x-agent-name"] = self._agent_name
+        return headers
+
+    def _retry_sleep(self, attempt, http_error=None):
+        if http_error is not None:
+            retry_after = http_error.headers.get("Retry-After")
+            if retry_after and retry_after.isdigit():
+                wait = min(int(retry_after), 60)
+                time.sleep(wait)
+                return
+        time.sleep(self.BACKOFF * attempt)
+
+    def _get(self, path):
+        if not self.enabled:
+            return None
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                req = urllib.request.Request(
+                    self.url + path,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    method="GET",
+                )
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    body = resp.read().decode("utf-8", "replace")
+                    return json.loads(body) if body else {}
+            except urllib.error.HTTPError as e:
+                if e.code not in self.RETRYABLE_HTTP or attempt == self.MAX_RETRIES:
+                    print(f"  [mc] {path} failed: HTTP {e.code}", file=sys.stderr)
+                    return None
+                self._retry_sleep(attempt, e)
+            except (urllib.error.URLError, OSError, ValueError) as e:
+                if attempt == self.MAX_RETRIES:
+                    print(f"  [mc] {path} failed: {e}", file=sys.stderr)
+                    return None
+                self._retry_sleep(attempt)
+        return None
 
     def _post(self, path, payload):
         if not self.enabled:
@@ -116,10 +165,7 @@ class MissionControlClient:
                 req = urllib.request.Request(
                     self.url + path,
                     data=json.dumps(payload).encode("utf-8"),
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    headers=self._headers(),
                     method="POST",
                 )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -129,15 +175,38 @@ class MissionControlClient:
                 if e.code not in self.RETRYABLE_HTTP or attempt == self.MAX_RETRIES:
                     print(f"  [mc] {path} failed: HTTP {e.code}", file=sys.stderr)
                     return None
+                self._retry_sleep(attempt, e)
             except (urllib.error.URLError, OSError, ValueError) as e:
                 if attempt == self.MAX_RETRIES:
                     print(f"  [mc] {path} failed: {e}", file=sys.stderr)
                     return None
-            if attempt < self.MAX_RETRIES:
-                time.sleep(self.BACKOFF * attempt)
+                self._retry_sleep(attempt)
         return None
 
+    def _known_agent_ids(self):
+        """Return {name: id} for already-registered agents, cached briefly.
+
+        Registration is IP-rate-limited (5/min), so we avoid POSTing names that
+        already exist — idempotent GET beats burning the registration budget.
+        """
+        now = time.time()
+        if self._agent_cache is not None and now - self._agent_cache_at < self.AGENT_CACHE_TTL:
+            return self._agent_cache
+        resp = self._get("/api/agents?limit=100")
+        known = {}
+        if resp and isinstance(resp, dict):
+            for agent in resp.get("agents") or []:
+                known[agent.get("name")] = agent.get("id")
+        self._agent_cache = known
+        self._agent_cache_at = now
+        return known
+
     def register(self, name, role="agent", capabilities=None):
+        known = self._known_agent_ids()
+        if name in known:
+            self._agent_id = known[name]
+            self._agent_name = name
+            return self._agent_id
         payload = {"name": name, "role": role}
         if capabilities:
             payload["capabilities"] = list(capabilities)
@@ -146,6 +215,8 @@ class MissionControlClient:
             agent = resp.get("agent") or {}
             self._agent_id = agent.get("id")
             self._agent_name = agent.get("name", name)
+            if self._agent_id is not None:
+                self._agent_cache[name] = self._agent_id
         return self._agent_id
 
     def heartbeat(self, status="idle", version=None, task=None, token_usage=None):

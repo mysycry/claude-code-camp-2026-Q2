@@ -17,6 +17,7 @@ module MudDaemon
       FileUtils.mkdir_p(PORT_DIR)
 
       @server = TCPServer.new("127.0.0.1", 0)
+      @mutex  = Mutex.new
       port    = @server.addr[1]
       File.write(PORT_FILE, port)
       warn "[mud_daemon] listening on 127.0.0.1:#{port} (pid #{Process.pid})"
@@ -27,7 +28,7 @@ module MudDaemon
 
       loop do
         client = @server.accept
-        handle_client(client)
+        Thread.new(client) { |c| handle_client(c) }
       end
     end
 
@@ -89,16 +90,16 @@ module MudDaemon
         return { ok: false, error: "name and password are required" }
       end
 
-      # Force-close any stale session before reconnecting
-      if (old = @sessions[sid])
-        old.close rescue nil
-        @sessions.delete(sid)
-      end
-
       session = MudManager::Session.new(host: host, port: port)
       session.open
       welcome = session.login(name, pwd) rescue "login completed"
-      @sessions[sid] = session
+      @mutex.synchronize do
+        # Force-close any stale session for the same key before storing the new one
+        if (old = @sessions[sid])
+          old.close rescue nil
+        end
+        @sessions[sid] = session
+      end
       { ok: true, data: "connected to #{host}:#{port}\n#{welcome}" }
     end
 
@@ -110,38 +111,44 @@ module MudDaemon
         return { ok: false, error: "command is required" }
       end
 
-      session = @sessions[sid]
-      unless session&.open?
-        return { ok: false, error: "not connected — call connect first" }
-      end
+      @mutex.synchronize do
+        session = @sessions[sid]
+        unless session&.open?
+          return { ok: false, error: "not connected — call connect first" }
+        end
 
-      session.drain
-      session.send_command(command)
-      response = session.read_until_prompt
-      { ok: true, data: response }
+        session.drain
+        session.send_command(command)
+        response = session.read_until_prompt
+        { ok: true, data: response }
+      end
     end
 
     def handle_disconnect(request)
       sid = request["session"] || "default"
-      session = @sessions[sid]
-      if session&.open?
-        session.send_command("quit") rescue nil
-        session.read_until_prompt(timeout: 2) rescue nil
-        session.close
-        @sessions.delete(sid)
-        { ok: true, data: "disconnected" }
-      else
-        { ok: true, data: "already disconnected" }
+      @mutex.synchronize do
+        session = @sessions[sid]
+        if session&.open?
+          session.send_command("quit") rescue nil
+          session.read_until_prompt(timeout: 2) rescue nil
+          session.close
+          @sessions.delete(sid)
+          { ok: true, data: "disconnected" }
+        else
+          { ok: true, data: "already disconnected" }
+        end
       end
     end
 
     def handle_status(request)
       sid = request["session"] || "default"
-      session = @sessions[sid]
-      if session&.open?
-        { ok: true, data: { connected: true, host: session.host, port: session.port } }
-      else
-        { ok: true, data: { connected: false } }
+      @mutex.synchronize do
+        session = @sessions[sid]
+        if session&.open?
+          { ok: true, data: { connected: true, host: session.host, port: session.port } }
+        else
+          { ok: true, data: { connected: false } }
+        end
       end
     end
   end

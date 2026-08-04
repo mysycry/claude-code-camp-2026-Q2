@@ -10,21 +10,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 from agents import mission_control
 
 
+class _FakeResp:
+    def __init__(self, payload):
+        self._body = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
 def _fake_urlopen(responses):
     """Return a urlopen patcher that returns canned responses keyed by path."""
-
-    class _FakeResp:
-        def __init__(self, payload):
-            self._body = json.dumps(payload).encode("utf-8")
-
-        def read(self):
-            return self._body
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
 
     def _handler(req, *a, **k):
         path = req.full_url.replace(req.full_url.split("/api/")[0], "")
@@ -39,12 +40,29 @@ def _fake_urlopen(responses):
 class MissionControlClientTestCase(unittest.TestCase):
     def test_register_parses_agent_id(self):
         with _fake_urlopen({
+            "/api/agents?limit=100": {"agents": []},
             "/api/agents/register": {"agent": {"id": 7, "name": "grind_agent"}, "registered": True},
         }):
             c = mission_control.MissionControlClient(url="http://localhost:3001",
                                                      api_key="k", enabled=True)
             self.assertEqual(c.register("grind_agent", role="agent"), 7)
             self.assertEqual(c._agent_name, "grind_agent")
+
+    def test_register_reuses_existing_agent(self):
+        """Already-registered names should be adopted via GET, not POSTed."""
+        calls = []
+
+        def _handler(req, *a, **k):
+            calls.append((req.get_method(), req.full_url))
+            return _FakeResp({"agents": [{"id": 3, "name": "grind_agent"}]})
+
+        with mock.patch("urllib.request.urlopen", side_effect=_handler):
+            c = mission_control.MissionControlClient(url="http://localhost:3001",
+                                                     api_key="k", enabled=True)
+            self.assertEqual(c.register("grind_agent", role="agent"), 3)
+        self.assertEqual(c._agent_name, "grind_agent")
+        methods = [m for m, _ in calls]
+        self.assertNotIn("POST", methods)
 
     def test_heartbeat_requires_registration(self):
         c = mission_control.MissionControlClient(url="http://localhost:3001",
@@ -128,6 +146,7 @@ class ManagedAgentTestCase(unittest.TestCase):
                                   "MC_API_KEY": "k"})
     def test_start_registers_and_returns_id(self):
         responses = {
+            "/api/agents?limit=100": {"agents": []},
             "/api/agents/register": {"agent": {"id": 4, "name": "grind_agent"}, "registered": True},
             "/api/agents/4/heartbeat": {"success": True},
         }
@@ -143,11 +162,17 @@ class RetryTestCase(unittest.TestCase):
         return mission_control.MissionControlClient(url="http://localhost:3001",
                                                     api_key="k", enabled=True)
 
+    @staticmethod
+    def _empty_list_resp():
+        return _FakeResp({"agents": []})
+
     def test_retries_transient_connection_error(self):
-        """A URLError (connection refused) should be retried, then return None."""
+        """A URLError (connection refused) on POST should be retried, then return None."""
         calls = {"n": 0}
 
-        def _boom(*a, **k):
+        def _boom(req, *a, **k):
+            if req.get_method() == "GET":
+                return self._empty_list_resp()
             calls["n"] += 1
             raise urllib.error.URLError("connection refused")
 
@@ -164,7 +189,9 @@ class RetryTestCase(unittest.TestCase):
             def __init__(self, code):
                 super().__init__("url", code, "err", {}, None)
 
-        def _boom(*a, **k):
+        def _boom(req, *a, **k):
+            if req.get_method() == "GET":
+                return self._empty_list_resp()
             counts["n"] += 1
             raise _Err(500)
 
@@ -175,7 +202,9 @@ class RetryTestCase(unittest.TestCase):
 
         counts["n"] = 0
 
-        def _unauth(*a, **k):
+        def _unauth(req, *a, **k):
+            if req.get_method() == "GET":
+                return self._empty_list_resp()
             counts["n"] += 1
             raise _Err(401)
 
@@ -202,7 +231,9 @@ class RetryTestCase(unittest.TestCase):
             def __init__(self):
                 super().__init__("url", 503, "err", {}, None)
 
-        def _flaky(*a, **k):
+        def _flaky(req, *a, **k):
+            if req.get_method() == "GET":
+                return self._empty_list_resp()
             attempts["n"] += 1
             if attempts["n"] == 1:
                 raise _Err()

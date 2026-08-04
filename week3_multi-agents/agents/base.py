@@ -154,6 +154,7 @@ def register_subagents(registry, agents):
     from boukensha.tool import Tool
 
     for agent in agents:
+        agent._mc_managed()
         registry.tool(
             agent.name,
             description=agent.description,
