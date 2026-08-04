@@ -111,13 +111,14 @@ class MissionControlClient:
         self._agent_cache = None
         self._agent_cache_at = 0.0
 
-    def _headers(self):
+    def _headers(self, agent=None):
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        if self._agent_name:
-            headers["x-agent-name"] = self._agent_name
+        name = agent or self._agent_name
+        if name:
+            headers["x-agent-name"] = name
         return headers
 
     def _retry_sleep(self, attempt, http_error=None):
@@ -129,17 +130,14 @@ class MissionControlClient:
                 return
         time.sleep(self.BACKOFF * attempt)
 
-    def _get(self, path):
+    def _get(self, path, agent=None):
         if not self.enabled:
             return None
         for attempt in range(1, self.MAX_RETRIES + 1):
             try:
                 req = urllib.request.Request(
                     self.url + path,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    headers=self._headers(agent),
                     method="GET",
                 )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -157,7 +155,7 @@ class MissionControlClient:
                 self._retry_sleep(attempt)
         return None
 
-    def _post(self, path, payload):
+    def _post(self, path, payload, agent=None):
         if not self.enabled:
             return None
         for attempt in range(1, self.MAX_RETRIES + 1):
@@ -165,7 +163,7 @@ class MissionControlClient:
                 req = urllib.request.Request(
                     self.url + path,
                     data=json.dumps(payload).encode("utf-8"),
-                    headers=self._headers(),
+                    headers=self._headers(agent),
                     method="POST",
                 )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -182,6 +180,74 @@ class MissionControlClient:
                     return None
                 self._retry_sleep(attempt)
         return None
+
+    def _put(self, path, payload, agent=None):
+        if not self.enabled:
+            return None
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                req = urllib.request.Request(
+                    self.url + path,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=self._headers(agent),
+                    method="PUT",
+                )
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    body = resp.read().decode("utf-8", "replace")
+                    return json.loads(body) if body else {}
+            except urllib.error.HTTPError as e:
+                if e.code not in self.RETRYABLE_HTTP or attempt == self.MAX_RETRIES:
+                    print(f"  [mc] {path} failed: HTTP {e.code}", file=sys.stderr)
+                    return None
+                self._retry_sleep(attempt, e)
+            except (urllib.error.URLError, OSError, ValueError) as e:
+                if attempt == self.MAX_RETRIES:
+                    print(f"  [mc] {path} failed: {e}", file=sys.stderr)
+                    return None
+                self._retry_sleep(attempt)
+        return None
+
+    def poll_queue(self, agent, max_capacity=None):
+        """Claim the next task for `agent` (GET /api/tasks/queue).
+
+        MC auto-claims an inbox/assigned task into `in_progress` and hands it to
+        the polling agent. Returns (reason, task_or_None) where reason is one of
+        'assigned', 'continue_current', 'at_capacity', 'no_tasks_available'.
+        """
+        import urllib.parse
+
+        path = f"/api/tasks/queue?agent={urllib.parse.quote(agent)}"
+        if max_capacity is not None:
+            path += f"&max_capacity={int(max_capacity)}"
+        resp = self._get(path, agent=agent)
+        if not resp:
+            return None, None
+        return resp.get("reason"), resp.get("task") or None
+
+    def update_task(self, task_id, **fields):
+        return self._put(f"/api/tasks/{task_id}", fields)
+
+    def get_messages(self, to_agent=None, since=None, limit=50):
+        import urllib.parse
+
+        parts = [f"limit={int(limit)}"]
+        if to_agent:
+            parts.append(f"to_agent={urllib.parse.quote(to_agent)}")
+        if since is not None:
+            parts.append(f"since={int(since)}")
+        resp = self._get(f"/api/chat/messages?{'&'.join(parts)}")
+        return (resp or {}).get("messages") or []
+
+    def post_message(self, content, conversation_id=None, to_agent=None, from_agent=None):
+        payload = {"content": content}
+        if conversation_id is not None:
+            payload["conversation_id"] = conversation_id
+        if to_agent:
+            payload["to"] = to_agent
+            payload["recipient"] = to_agent
+        if from_agent:
+            payload["from"] = from_agent
+        return self._post("/api/chat/messages", payload)
 
     def _known_agent_ids(self):
         """Return {name: id} for already-registered agents, cached briefly.

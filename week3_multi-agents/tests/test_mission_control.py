@@ -245,5 +245,79 @@ class RetryTestCase(unittest.TestCase):
         self.assertEqual(attempts["n"], 2)
 
 
+class ChatAndQueueTestCase(unittest.TestCase):
+    def _client(self):
+        return mission_control.MissionControlClient(url="http://localhost:3001",
+                                                    api_key="k", enabled=True)
+
+    def test_poll_queue_returns_claimed_task(self):
+        seen = {}
+
+        def _handler(req, *a, **k):
+            headers = {k.lower(): v for k, v in req.header_items()}
+            seen["agent"] = headers.get("x-agent-name")
+            return _FakeResp({"reason": "assigned",
+                              "task": {"id": 5, "title": "hello", "status": "in_progress"},
+                              "agent": "grind_agent"})
+
+        with mock.patch("urllib.request.urlopen", side_effect=_handler):
+            reason, task = self._client().poll_queue("grind_agent")
+        self.assertEqual(reason, "assigned")
+        self.assertEqual(task["id"], 5)
+        self.assertEqual(seen["agent"], "grind_agent")
+
+    def test_poll_queue_no_tasks(self):
+        with _fake_urlopen({"/api/tasks/queue?agent=grind_agent":
+                            {"reason": "no_tasks_available", "task": None}}):
+            reason, task = self._client().poll_queue("grind_agent")
+        self.assertEqual(reason, "no_tasks_available")
+        self.assertIsNone(task)
+
+    def test_update_task_uses_put(self):
+        captured = {}
+
+        def _handler(req, *a, **k):
+            captured["method"] = req.get_method()
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _FakeResp({"success": True})
+
+        with mock.patch("urllib.request.urlopen", side_effect=_handler):
+            self._client().update_task(5, status="done", metadata={"response": "ok"})
+        self.assertEqual(captured["method"], "PUT")
+        self.assertEqual(captured["body"]["status"], "done")
+        self.assertEqual(captured["body"]["metadata"]["response"], "ok")
+
+    def test_get_messages_filters_by_to_agent_and_since(self):
+        captured = {}
+
+        def _handler(req, *a, **k):
+            captured["url"] = req.full_url
+            return _FakeResp({"messages": [{"id": 1, "from_agent": "admin",
+                                            "to_agent": "grind_agent",
+                                            "conversation_id": 3, "content": "hi"}]})
+
+        with mock.patch("urllib.request.urlopen", side_effect=_handler):
+            msgs = self._client().get_messages(to_agent="grind_agent", since=100)
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("to_agent=grind_agent", captured["url"])
+        self.assertIn("since=100", captured["url"])
+
+    def test_post_message_sends_conversation_and_recipient(self):
+        captured = {}
+
+        def _handler(req, *a, **k):
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _FakeResp({"message": {"id": 7}})
+
+        with mock.patch("urllib.request.urlopen", side_effect=_handler):
+            self._client().post_message(content="all good", conversation_id=3,
+                                        to_agent="admin", from_agent="grind_agent")
+        self.assertEqual(captured["body"]["content"], "all good")
+        self.assertEqual(captured["body"]["conversation_id"], 3)
+        self.assertEqual(captured["body"]["to"], "admin")
+        self.assertEqual(captured["body"]["recipient"], "admin")
+        self.assertEqual(captured["body"]["from"], "grind_agent")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

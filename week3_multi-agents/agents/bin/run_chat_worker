@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+VENV="$ROOT/.venv"
+PYTHON="$VENV/Scripts/python"
+if [ -f "${PYTHON}.exe" ]; then
+  PYTHON="${PYTHON}.exe"
+fi
+
+if [ ! -f "$PYTHON" ]; then
+  echo "ERROR: Virtual environment not found at $VENV" >&2
+  echo "Run: python -m venv \"$VENV\"" >&2
+  exit 1
+fi
+
+export PYTHONIOENCODING=utf-8
+export BOUKENSHA_DIR="$ROOT/.boukensha"
+export MUD_MANAGER_DIR="$ROOT/.mud_manager"
+
+# Ensure the MUD daemon is up so status replies report real liveness.
+"$PYTHON" -u -m agents.daemon_manager || echo "WARNING: could not start MUD daemon" >&2
+
+cd "$ROOT/week3_multi-agents"
+exec "$PYTHON" -u agents/chat_worker.py "$@"

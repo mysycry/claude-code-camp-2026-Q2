@@ -83,6 +83,15 @@ def run_squad(task=None, max_iterations=None, max_turn_tokens=None):
         print(f"  [squad] WARNING: {daemon_detail}", file=sys.stderr)
 
     try:
+        from agents.chat_worker import ensure_chat_worker
+
+        cw_ok, cw_detail = ensure_chat_worker()
+        if not cw_ok:
+            print(f"  [squad] WARNING: {cw_detail}", file=sys.stderr)
+    except Exception as e:
+        print(f"  [squad] WARNING: chat worker not started: {e}", file=sys.stderr)
+
+    try:
         return boukensha.run(
             task=task,
             system=_system_prompt(),

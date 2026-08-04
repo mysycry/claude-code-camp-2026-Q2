@@ -116,6 +116,17 @@ heartbeat in the background (`mission_control.py`):
   and its own heartbeat includes the task and git-version.
 - **Best-effort.** Any MC failure is logged and swallowed — Mission Control is a
   dashboard, never a dependency (`MC_ENABLED=false` disables it entirely).
+- **Agent Chat responder.** `chat_worker.py` makes the squad answer Agent Chat
+  messages and task-queue assignments itself (MC expects an OpenClaw gateway
+  session, which the squad doesn't run). It polls each agent's queue + messages
+  and posts a live status reply (bulletin player snapshot, MUD daemon health,
+  squad liveness) to the same conversation. It auto-starts with the squad
+  (`squad.py` → `ensure_chat_worker()`, a detached background process that
+  survives the run) or can be launched by hand:
+  `python agents/chat_worker.py` (or `--once` for a single pass; on Git Bash,
+  `agents/bin/run_chat_worker`). Seen-message IDs persist to
+  `.mud_manager/chat_worker_state.json` and the PID to
+  `.mud_manager/chat_worker.pid`, so restarts never double-reply or double-spawn.
 
 ## Tests
 

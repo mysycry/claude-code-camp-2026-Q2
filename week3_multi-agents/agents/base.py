@@ -150,6 +150,19 @@ def _describe_task(name, kwargs):
     return f"{name}({body})"
 
 
+def _subagent_block(agent):
+    """Return a block that forwards keyword args to the agent's run().
+
+    The framework dispatches tool calls as `block(**args)`, so the block must
+    accept the parameters declared in `agent.parameters`. A closure (not a
+    default-arg lambda) also avoids the classic loop-capture bug.
+    """
+    def block(**kwargs):
+        return agent._execute(**kwargs)
+
+    return block
+
+
 def register_subagents(registry, agents):
     from boukensha.tool import Tool
 
@@ -159,5 +172,5 @@ def register_subagents(registry, agents):
             agent.name,
             description=agent.description,
             parameters=agent.parameters,
-            block=lambda args=None, _a=agent: _a._execute(**(args or {})),
+            block=_subagent_block(agent),
         )

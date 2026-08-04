@@ -21,6 +21,93 @@ why they were made, and how each piece works.
 | Daemon threading | `week1_baseline/ruby/10_standard_tool_library/lib/mud_daemon.rb` | Thread-per-connection + mutex so concurrent logins no longer wedge the daemon |
 | Client port/timeouts | `week1_baseline/python/12_context/boukensha/tools/mud_client.py` | Lazy `_port_file()` resolution (no stale import-time cache), connect timeout 60s |
 | Mission Control | `agents/mission_control.py` + integration | All 8 agents register/heartbeat on the MC dashboard (:3001), GET-first to dodge the 5/min rate limit |
+| Agent Chat responder | `agents/chat_worker.py` | Polls each agent's task queue + chat messages and replies with live status; restart-safe via `.mud_manager/chat_worker_state.json` |
+| MC client extras | `agents/mission_control.py` | `poll_queue()`, `update_task()` (`_put` with retry), `get_messages()`, `post_message()`, `_headers(agent=None)` |
+| Sub-agent tool dispatch | `agents/base.py` | Fix: framework calls tools as `block(**kwargs)`, so sub-agents register a closure forwarding typed params to `_execute()` (was `block=lambda args=None` → `TypeError: unexpected keyword argument` on every option) |
+| Dispatch regression tests | `tests/test_subagents.py` | 3 tests: typed kwargs, no args, per-agent binding |
+
+## 9. Agent Chat responder + sub-agent tool dispatch
+
+### Sub-agent tool dispatch bug
+
+The squad run "reset me to the Temple" failed not because of a PORT_FILE
+problem but because sub-agent tools are invoked as `block(**kwargs)`: the
+framework unpacks the tool-call parameters into keyword arguments, but
+`register_subagents()` had registered a bare `block=lambda args=None, _a=agent:`.
+Any documented option (`start_room`, `action`, `target`, `steps`) then raised
+`TypeError: unexpected keyword argument`, the manager fell back to manual MUD
+navigation, and the player died in the Chessboard of Midgaard (lost ~5.7k XP,
+level 5, 1/85 HP). `register_subagents()` now closes over the agent and
+forwards typed params:
+
+```python
+def _subagent_block(agent):
+    def block(**kwargs):
+        return agent._execute(**kwargs)
+    return block
+```
+
+Covered by `tests/test_subagents.py` (typed kwargs, no args, per-agent
+binding); the full suite went to **69/69**.
+
+### Why Agent Chat never answered
+
+MC's Agent Chat writes `to_agent` messages into the `messages` table and hands
+them to a gateway session for delivery. The squad runs no OpenClaw gateway, so
+messages sat unclaimed — even though agents register/heartbeat for the
+dashboard. Verified from the container's `openapi.json` and route sources that
+the squad's generic REST path is fully capable: `GET /api/tasks/queue`,
+`PUT /api/tasks/{id}`, `GET/POST /api/chat/messages`.
+
+### What the worker does
+
+- `MissionControlClient` grew `_put()`, `poll_queue()`, `update_task()`,
+  `get_messages()`, `post_message()`.
+- `chat_worker.py` polls each registered agent: claims queue tasks (marks them
+  done with the status reply attached) and answers new `to_agent` chat
+  messages in the same conversation.
+- Replies are live: bulletin snapshot (L5, 5,772/26,228 XP, gold, HP, current
+  room), MUD daemon ping through its port file, squad liveness from recent
+  bulletin updates.
+- Sender attribution: MC rewrites `from` to the authenticated API user, so a
+  pure API key posts as "API Access"; the body is prefixed `[<agent>]` to make
+  the speaker explicit.
+- Restart-safe: seen message ids persist to
+  `.mud_manager/chat_worker_state.json` (a one-time catch-up replies to the
+  pre-existing unhandled messages on first boot, then never duplicates).
+- Standalone: `python agents/chat_worker.py [--once] [--interval N] [--agents a,b]`.
+
+### Auto-start with the squad
+
+`chat_worker.py` gained a lifecycle layer mirroring `daemon_manager.py`:
+`start_chat_worker()` spawns the worker as a **detached background process**
+(`subprocess.Popen`, `CREATE_NO_WINDOW`, logging to
+`.mud_manager/chat_worker.log`, PID in `.mud_manager/chat_worker.pid`), so it
+keeps answering Agent Chat long after the squad run exits. `ensure_chat_worker()`
+is idempotent (skips when the PID is alive; skips entirely when
+`MC_ENABLED=false`) and is called best-effort from `squad.py` right after
+`ensure_daemon()` — the squad now starts it automatically. A Git Bash helper
+`agents/bin/run_chat_worker` ensures the daemon and runs the worker in the
+foreground for manual use. Covered by `tests/test_chat_worker.py` (6 tests:
+spawn writes pid file, spawn-when-down, skip-when-up, skip-when-MC-off,
+spawn-failure reporting, status-reply fields).
+
+Verified live: `ensure_chat_worker()` spawned pid 12228, a second call
+reported "already running", and the background worker answered new Agent Chat
+messages within one 5s poll cycle (including ones typed in the MC UI while it
+ran).
+
+Verified end-to-end live: posted a test message to `grind_agent`, one
+`--once` pass replied with the live status report in conversation
+`agent_grind_agent` (message ids 3-5), and a re-run made no duplicates.
+
+### One test fix
+
+`test_poll_queue_returns_claimed_task` asserted `req.get_header("x-agent-name")`
+— but `urllib.request` headers given as a dict are matched case-sensitively
+(`get_header` delegates to `dict.get`), so it returned `None` even though the
+wire header `X-agent-name` was correct and the server accepts it fine. The
+assert now inspects `req.header_items()` with a lowercase map.
 
 ## 1. Verified player reset
 
@@ -229,7 +316,9 @@ summary of what shipped:
 ## Verification
 
 - `python -m compileall week3_multi-agents` — clean.
-- `python -m unittest discover -s "week3_multi-agents\tests"` — 61/61 pass.
+- `python -m unittest discover -s "week3_multi-agents\tests"` — 75/75 pass
+  (61 baseline + `test_subagents.py` x3 + chat/task client tests +
+  `test_chat_worker.py` x6 lifecycle/status-reply tests).
 - All agent modules import successfully; memory server `/stats` healthy
   (world_rooms 1878, world_exits 4291); Grafana 13.1.1 healthy.
 - `reset_player_to_start` exercised via fake-client harness — 3/3 cases pass.
