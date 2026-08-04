@@ -1,0 +1,46 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: boukensha-jaeger
+    ports:
+      - "16686:16686"    # Jaeger UI
+      - "4318:4318"      # OTLP HTTP receiver
+      - "4317:4317"      # OTLP gRPC receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    container_name: boukensha-grafana
+    image: boukensha-grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards-json:/var/lib/grafana/dashboards
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  mission-control:
+    image: ghcr.io/builderz-labs/mission-control:latest
+    container_name: boukensha-mission-control
+    ports:
+      - "3001:3000"
+    environment:
+      - AUTH_USER=admin
+      - AUTH_PASS=boukensha
+      - MC_ALLOWED_HOSTS=localhost,127.0.0.1
+    volumes:
+      - mission-control-data:/app/.data
+    restart: unless-stopped
+
+volumes:
+  mission-control-data:

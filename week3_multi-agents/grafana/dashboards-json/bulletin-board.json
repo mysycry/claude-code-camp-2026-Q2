@@ -1,0 +1,413 @@
+{
+  "uid": "4f1b0a77-91c2-4d6e-9a3d-5e8f2b1c7d03",
+  "title": "Boukensha Bulletin Board",
+  "tags": ["boukensha", "player", "bulletin"],
+  "schemaVersion": 38,
+  "version": 5,
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Level",
+      "gridPos": {"h": 5, "w": 3, "x": 0, "y": 0},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "score_level", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "data": "",
+        "body": {},
+        "headers": [],
+        "params": [],
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#7c3aed"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Gold",
+      "gridPos": {"h": 5, "w": 3, "x": 3, "y": 0},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "score_gold", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#f59e0b"},
+          "unit": "currency",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Experience",
+      "gridPos": {"h": 5, "w": 4, "x": 6, "y": 0},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "score_xp", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#10b981"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "XP to Next Level",
+      "gridPos": {"h": 5, "w": 4, "x": 10, "y": 0},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "score_xp_next", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#8b5cf6"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Last Kill",
+      "gridPos": {"h": 5, "w": 10, "x": 14, "y": 0},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "last_kill", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#ef4444"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "gauge",
+      "title": "Health",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 5},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "pct_hp", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "#ef4444", "value": null},
+              {"color": "#f59e0b", "value": 40},
+              {"color": "#10b981", "value": 70}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "gauge",
+      "title": "Mana",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 5},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "pct_mana", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "#ef4444", "value": null},
+              {"color": "#f59e0b", "value": 40},
+              {"color": "#3b82f6", "value": 70}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "gauge",
+      "title": "Movement",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 5},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "pct_mv", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "#ef4444", "value": null},
+              {"color": "#f59e0b", "value": 40},
+              {"color": "#10b981", "value": 70}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "gauge",
+      "title": "XP Progress",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 5},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "pct_xp", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "#8b5cf6", "value": null},
+              {"color": "#a78bfa", "value": 60},
+              {"color": "#7c3aed", "value": 80}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Current Location",
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 11},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "location", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#06b6d4"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Destination",
+      "gridPos": {"h": 4, "w": 12, "x": 12, "y": 11},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "value",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "destination", "values": false}
+      },
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-state",
+        "method": "GET",
+        "root": "",
+        "columns": [],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "#3b82f6"},
+          "unit": "none",
+          "mappings": []
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Recent Player Events",
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 15},
+      "datasource": {"type": "yesoreyeram-infinity-datasource", "uid": "boukensha-memory-datasource"},
+      "options": {},
+      "targets": [{
+        "refId": "A",
+        "queryType": "json",
+        "source": "url",
+        "url": "/player-events",
+        "method": "GET",
+        "data": "",
+        "body": {},
+        "headers": [],
+        "params": [{"key": "limit", "value": "50"}],
+        "root": "",
+        "columns": [
+          {"selector": "ts", "text": "Time", "type": "string"},
+          {"selector": "kind", "text": "Kind", "type": "string"},
+          {"selector": "message", "text": "Event", "type": "string"}
+        ],
+        "format": "table"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": []
+        }
+      }
+    }
+  ]
+}

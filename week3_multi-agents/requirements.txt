@@ -1,0 +1,14 @@
+# Boukensha Squad — Python dependencies
+#
+# The squad agent itself uses only the Python standard library plus PyYAML.
+# It imports the Boukensha agent framework from:
+#   ../week1_baseline/python/12_context   (add to PYTHONPATH)
+#
+# The MUD daemon, MCP server, log viewer, and Grafana/Jaeger stack are separate:
+#   - week1_baseline/ruby/*            (Ruby; see week1 README for gems)
+#   - week3_multi-agents/docker-compose.yml  (Jaeger + Grafana)
+
+PyYAML>=6.0
+
+# Dev/test-only
+# pytest>=8.0

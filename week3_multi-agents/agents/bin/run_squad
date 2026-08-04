@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+VENV="$ROOT/.venv"
+PYTHON="$VENV/Scripts/python"
+if [ -f "${PYTHON}.exe" ]; then
+  PYTHON="${PYTHON}.exe"
+fi
+
+if [ ! -f "$PYTHON" ]; then
+  echo "ERROR: Virtual environment not found at $VENV" >&2
+  echo "Run: python -m venv \"$VENV\"" >&2
+  exit 1
+fi
+
+export PYTHONIOENCODING=utf-8
+export BOUKENSHA_NO_TUI=1
+export BOUKENSHA_OTEL_ENABLED=true
+export BOUKENSHA_DIR="$ROOT/.boukensha"
+export MUD_MANAGER_DIR="$ROOT/.mud_manager"
+
+TASK="${1:-Check the MUD and observability stack, then report what you find.}"
+MAX_ITERATIONS="${2:-60}"
+
+# --- Auto-start MUD daemon if not running ---
+RUBY="$(command -v ruby || echo 'C:/Ruby40-x64/bin/ruby.exe')"
+DAEMON_SCRIPT="$ROOT/week1_baseline/ruby/10_standard_tool_library/bin/mud_daemon"
+
+if ! "$PYTHON" -u -c "
+import json, os, socket, sys
+pf = os.environ.get('MUD_MANAGER_DIR', '') + '/port'
+if not os.path.isfile(pf): sys.exit(1)
+port = int(open(pf).read().strip())
+try:
+    s = socket.create_connection(('127.0.0.1', port), timeout=2)
+    s.sendall(b'{\"cmd\":\"ping\"}\n')
+    r = json.loads(s.recv(4096))
+    sys.exit(0 if r.get('data') == 'pong' else 1)
+except: sys.exit(1)
+"; then
+    echo "  starting MUD daemon..." >&2
+    rm -f "$MUD_MANAGER_DIR/port"
+    "$RUBY" "$DAEMON_SCRIPT" &
+    DAEMON_PID=$!
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if [ -f "$MUD_MANAGER_DIR/port" ]; then
+            sleep 0.3
+            break
+        fi
+        sleep 0.3
+    done
+    echo "  MUD daemon started (pid $DAEMON_PID)" >&2
+fi
+
+cd "$ROOT/week3_multi-agents"
+exec "$PYTHON" -u -c "
+import os, sys
+sys.path.insert(0, os.path.join('$ROOT', 'week3_multi-agents'))
+sys.path.insert(0, os.path.join('$ROOT', 'week3_multi-agents', 'agents'))
+
+from agents.squad import run_squad
+import sys as _sys
+
+result = run_squad(task='$TASK', max_iterations=$MAX_ITERATIONS)
+print('\\n--- SQUAD RESULT ---')
+print(result)
+"

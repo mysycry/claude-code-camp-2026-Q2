@@ -1,0 +1,29 @@
+squad:
+  name: Boukensha Squad
+  model: deepseek-v4-flash-free
+  provider: opencode
+  max_iterations: 60
+  max_turn_tokens: 60000
+  memory_path: ../memory/memory_bench.db
+  trace_dir: traces
+
+mud:
+  host: localhost
+  port: 4000
+  username: dummy
+  password: helloworld
+
+jaeger:
+  otlp_endpoint: http://localhost:4318/v1/traces
+  ui_url: http://localhost:16686
+  services_api: http://localhost:16686/api/services
+
+grafana:
+  url: http://localhost:3000
+  health_api: http://localhost:3000/api/health
+
+mission_control:
+  enabled: false
+  url: http://localhost:3001
+  api_key: ""
+  heartbeat_interval: 30

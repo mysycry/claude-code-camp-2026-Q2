@@ -1,0 +1,127 @@
+{
+  "The Dirty Hallway": {
+    "name": "The Dirty Hallway",
+    "exits": {
+      "e": true,
+      "s": false,
+      "w": true
+    },
+    "mobs": [],
+    "items": [
+      "The corpse of the talkative newbie is lying here."
+    ]
+  },
+  "A Nexus": {
+    "name": "A Nexus",
+    "exits": {
+      "n": false,
+      "e": false,
+      "s": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": [
+      "A bright green newbie vest is lying here looking for a body to hug."
+    ]
+  },
+  "More Of The Hallway": {
+    "name": "More Of The Hallway",
+    "exits": {
+      "n": true,
+      "s": true,
+      "w": false
+    },
+    "mobs": [],
+    "items": []
+  },
+  "Another Corner": {
+    "name": "Another Corner",
+    "exits": {
+      "n": true,
+      "e": false,
+      "w": true
+    },
+    "mobs": [],
+    "items": [
+      "A shiny newbie dagger is lying here looking for a back to stab. ..It has a soft glowing aura!"
+    ]
+  },
+  "A Brighter Hallway": {
+    "name": "A Brighter Hallway",
+    "exits": {
+      "e": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": []
+  },
+  "The End Of The Passage": {
+    "name": "The End Of The Passage",
+    "exits": {
+      "e": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": []
+  },
+  "An Open Field By The Great Field": {
+    "name": "An Open Field By The Great Field",
+    "exits": {
+      "n": true,
+      "e": true
+    },
+    "mobs": [],
+    "items": []
+  },
+  "The Great Field Of Midgaard": {
+    "name": "The Great Field Of Midgaard",
+    "exits": {
+      "n": true,
+      "e": true,
+      "s": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": []
+  },
+  "The Entrance To The Newbie Zone": {
+    "name": "The Entrance To The Newbie Zone",
+    "exits": {
+      "n": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": [
+      "A bright green newbie vest is lying here looking for a body to hug."
+    ]
+  },
+  "The Beginning Of The Passage": {
+    "name": "The Beginning Of The Passage",
+    "exits": {
+      "e": true,
+      "s": true
+    },
+    "mobs": [],
+    "items": [
+      "A shiny newbie dagger is lying here looking for a back to stab. ..It has a soft glowing aura!"
+    ]
+  },
+  "The Dirt Path": {
+    "name": "The Dirt Path",
+    "exits": {
+      "e": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": []
+  },
+  "This zone is above your recommended level.": {
+    "name": "This zone is above your recommended level.",
+    "exits": {
+      "e": true,
+      "w": true
+    },
+    "mobs": [],
+    "items": []
+  }
+}
